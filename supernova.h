@@ -348,7 +348,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto opcode() const noexcept
         {
-            return this->m_instruction & mask_op;
+            return static_cast<instruction_prefixes>(this->m_instruction & mask_op);
         }
 
         /**
@@ -357,7 +357,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto r1() const noexcept
         {
-            return this->m_instruction & mask_r1 >> off_r1;
+            return (this->m_instruction & mask_r1) >> off_r1;
         }
 
         /**
@@ -366,7 +366,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto r2() const noexcept
         {
-            return this->m_instruction & mask_r2 >> off_r2;
+            return (this->m_instruction & mask_r2) >> off_r2;
         }
 
         /**
@@ -375,7 +375,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto rd() const noexcept
         {
-            return this->m_instruction & mask_rd >> off_rd;
+            return (this->m_instruction & mask_rd) >> off_rd;
         }
 
         /**
@@ -457,7 +457,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto opcode() const noexcept
         {
-            return this->m_instruction & mask_op;
+            return static_cast<instruction_prefixes>(this->m_instruction & mask_op);
         }
 
         /**
@@ -466,7 +466,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto r1() const noexcept
         {
-            return this->m_instruction & mask_r1 >> off_r1;
+            return (this->m_instruction & mask_r1) >> off_r1;
         }
 
         /**
@@ -475,16 +475,25 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto rd() const noexcept
         {
-            return this->m_instruction & mask_rd >> off_rd;
+            return (this->m_instruction & mask_rd) >> off_rd;
         }
 
         /**
-         * @brief get the second register in this instruction
+         * @brief get the second register in this instruction, sign extended
          * @return second register index
          */
         [[nodiscard]] constexpr auto imm() const noexcept
         {
-            return ssextend(this->m_instruction & mask_imm >> off_imm);
+            return ssextend((this->m_instruction & mask_imm) >> off_imm);
+        }
+
+        /**
+         * @brief get the second register in this instruction, do not extend sign
+         * @return second register index
+         */
+        [[nodiscard]] constexpr auto uimm() const noexcept
+        {
+            return (this->m_instruction & mask_imm) >> off_imm;
         }
 
         /**
@@ -554,7 +563,7 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto opcode() const noexcept
         {
-            return this->m_instruction & mask_op;
+            return static_cast<instruction_prefixes>(this->m_instruction & mask_op);
         }
 
         /**
@@ -563,16 +572,25 @@ namespace supernova
          */
         [[nodiscard]] constexpr auto r1() const noexcept
         {
-            return this->m_instruction & mask_r1 >> off_r1;
+            return (this->m_instruction & mask_r1) >> off_r1;
+        }
+
+        /**
+         * @brief get the immediate in this instruction, sign extended
+         * @return immediate value
+         */
+        [[nodiscard]] constexpr auto imm() const noexcept
+        {
+            return lsextend((this->m_instruction & mask_imm) >> off_imm);
         }
 
         /**
          * @brief get the second register in this instruction
-         * @return second register index
+         * @return immediate value
          */
-        [[nodiscard]] constexpr auto imm() const noexcept
+        [[nodiscard]] constexpr auto uimm() const noexcept
         {
-            return lsextend(this->m_instruction & mask_imm >> off_imm);
+            return (this->m_instruction & mask_imm) >> off_imm;
         }
 
         /**
@@ -678,8 +696,8 @@ namespace supernova
         /** count all registers inside the processor */
         static const constexpr auto register_count = 32;
 
-        Thread(std::unique_ptr<uint8_t[]> memory, uint64_t memory_size, struct thread_model_t *model)
-            : m_memory{std::move(memory)}, m_memory_size{memory_size}, m_model{model}
+        Thread(uint8_t* memory, uint64_t memory_size, struct thread_model_t *model)
+            : m_memory{memory}, m_memory_size{memory_size}, m_model{model}
         {
         }
 
@@ -716,7 +734,7 @@ namespace supernova
 
         /**
          * @brief get the pointer to the working memory region
-         * @return memory `unique_ptr` reference
+         * @return memory pointer
          *
          * @note `fetch` is not implemented as a member function as it requires processor calls
          */
@@ -773,7 +791,7 @@ namespace supernova
 
     private:
         std::array<uint64_t, register_count> m_registers{{0}}; /**< thread registers */
-        std::unique_ptr<uint8_t[]> m_memory{};                 /**< thread memory pointer */
+        uint8_t* m_memory{};                 /**< thread memory pointer */
         uint64_t m_program_counter{0};                         /**< thread instructon pointer */
         uint64_t m_int_vector{0};                              /**< interrupt vector pointer*/
         uint64_t m_memory_size;                                /**< thread memory size */
@@ -873,9 +891,10 @@ namespace supernova
      * @param argc main's argc
      * @param[in] argv main's argv
      * @param thread current thread to run 
+     * @param step set to only run one instruction, defaults to false but used when testing
      * @return exit codet
      */
-    thread_return run(int argc, char **argv, Thread &thread);
+    thread_return run(int argc, char **argv, Thread &thread, bool step = false);
 
     
 

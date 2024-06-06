@@ -24,7 +24,7 @@ namespace
             return 0;
         }
         // NOLINTNEXTLINE: yeah it works
-        return *reinterpret_cast<integer *>(thread.memory().get() + address);
+        return *reinterpret_cast<integer *>(thread.memory() + address);
     }
 
     template <typename integer>
@@ -36,7 +36,7 @@ namespace
             return;
         }
         // NOLINTNEXTLINE: looks good to me tho
-        *reinterpret_cast<integer *>(thread.memory().get() + address) = value;
+        *reinterpret_cast<integer *>(thread.memory() + address) = value;
     }
 
     void hwpush64(Thread &thread, uint64_t value) noexcept
@@ -377,8 +377,7 @@ namespace
             thread.registers(rinstr.rd()) = thread.registers(rinstr.r1()) > thread.registers(rinstr.r2());
             break;
         case Opcodes::setgui_instrc:
-            ///TODO: this is faulty because ssextend shouldn't have been called here
-            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) > static_cast<uint64_t>(sinstr.imm());
+            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) > static_cast<uint64_t>(sinstr.uimm());
             break;
         case Opcodes::setgsr_instrc:
             thread.registers(rinstr.rd()) = static_cast<int64_t>(thread.registers(rinstr.r1())) > static_cast<int64_t>(thread.registers(rinstr.r2()));
@@ -391,8 +390,7 @@ namespace
             thread.registers(rinstr.rd()) = thread.registers(rinstr.r1()) <= thread.registers(rinstr.r2());
             break;
         case Opcodes::setleui_instrc:
-            ///TODO: this is faulty because ssextend shouldn't have been called here
-            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) <= static_cast<uint64_t>(sinstr.imm());
+            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) <= sinstr.uimm();
             break;
         case Opcodes::setlesr_instrc:
             thread.registers(rinstr.rd()) = static_cast<int64_t>(thread.registers(rinstr.r1())) <= static_cast<int64_t>(thread.registers(rinstr.r2()));
@@ -421,9 +419,14 @@ namespace
 
 namespace supernova
 {
-    thread_return run(int argc, char **argv, Thread &thread)
+    thread_return run(int argc, char **argv, Thread &thread, bool step)
     {
         thread.registers(0) = 0;
+        if (step) {
+            exec_instruction(thread);
+            return {true, 0};
+        }
+        
         thread.registers(31) = argc;
         thread.registers(30) = reinterpret_cast<uint64_t>(argv);
 
