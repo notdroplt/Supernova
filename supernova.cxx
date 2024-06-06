@@ -3,15 +3,15 @@
 
 namespace
 {
-    using Thread = zenith::supernova::Thread;
-    using ProcessorCall = zenith::supernova::ProcessorCall;
-    using DestroyFor = zenith::supernova::ThreadDestruction;
-    using Instruction = zenith::supernova::Instruction;
-    using RInstr = zenith::supernova::RInstruction;
-    using SInstr = zenith::supernova::SInstruction;
-    using LInstr = zenith::supernova::LInstruction;
-    using Opcodes = zenith::supernova::instruction_prefixes;
-    using thread_return = zenith::supernova::thread_return;
+    using Thread = supernova::Thread;
+    using ProcessorCall = supernova::ProcessorCall;
+    using DestroyFor = supernova::ThreadDestruction;
+    using Instruction = supernova::Instruction;
+    using RInstr = supernova::RInstruction;
+    using SInstr = supernova::SInstruction;
+    using LInstr = supernova::LInstruction;
+    using Opcodes = supernova::instruction_prefixes;
+    using thread_return = supernova::thread_return;
 
     constexpr void dispatch_pcall(Thread &thread, ProcessorCall pcall) noexcept;
 
@@ -51,20 +51,6 @@ namespace
     //     thread->registers[1] += 8;
     //     return val;
     // }
-
-    [[nodiscard, gnu::const]] constexpr int64_t lsextend(uint64_t number) noexcept
-    {
-        constexpr auto mask = 0xfff8000000000000LU;
-        constexpr auto index = 51U;
-        return number >> index != 0 ? static_cast<int64_t>(number) | mask : static_cast<int64_t>(number);
-    }
-
-    [[nodiscard, gnu::const]] constexpr int64_t ssextend(uint64_t number) noexcept
-    {
-        constexpr auto mask = 0xffffc00000000000LU;
-        constexpr auto index = 46U;
-        return number >> index != 0 ? static_cast<int64_t>(number) | mask : static_cast<int64_t>(number);
-    }
 
     constexpr void pcall_minus_one(Thread &thread)
     {
@@ -343,7 +329,7 @@ namespace
         /**/
         case Opcodes::jal_instrc:
             thread.registers(linstr.r1()) = thread.progc() + sizeof(uint64_t);
-            thread.progc() += ssextend(linstr.imm());
+            thread.progc() += linstr.imm();
             break;
         case Opcodes::jalr_instrc:
             thread.registers(sinstr.rd()) = thread.progc() + sizeof(uint64_t);
@@ -352,38 +338,38 @@ namespace
         case Opcodes::je_instrc:
             if (thread.registers(sinstr.rd()) == thread.registers(sinstr.r1()))
             {
-                thread.progc() += ssextend(sinstr.imm());
+                thread.progc() += sinstr.imm();
             }
             break;
         case Opcodes::jne_instrc:
             if (thread.registers(sinstr.rd()) != thread.registers(sinstr.r1()))
             {
-                thread.progc() += ssextend(sinstr.imm());
+                thread.progc() += sinstr.imm();
             }
             break;
         /**/
         case Opcodes::jgu_instrc:
             if (thread.registers(sinstr.rd()) > thread.registers(sinstr.r1()))
             {
-                thread.progc() += ssextend(sinstr.imm());
+                thread.progc() += sinstr.imm();
             }
             break;
         case Opcodes::jgs_instrc:
             if (static_cast<int64_t>(thread.registers(sinstr.rd())) > static_cast<int64_t>(thread.registers(sinstr.r1())))
             {
-                thread.progc() += ssextend(sinstr.imm());
+                thread.progc() += sinstr.imm();
             }
             break;
         case Opcodes::jleu_instrc:
             if (thread.registers(sinstr.rd()) <= thread.registers(sinstr.r1()))
             {
-                thread.progc() += ssextend(sinstr.imm());
+                thread.progc() += sinstr.imm();
             }
             break;
         case Opcodes::jles_instrc:
             if (static_cast<int64_t>(thread.registers(sinstr.rd())) <= static_cast<int64_t>(thread.registers(sinstr.r1())))
             {
-                thread.progc() += ssextend(sinstr.imm());
+                thread.progc() += sinstr.imm();
             }
             break;
         /**/
@@ -391,7 +377,8 @@ namespace
             thread.registers(rinstr.rd()) = thread.registers(rinstr.r1()) > thread.registers(rinstr.r2());
             break;
         case Opcodes::setgui_instrc:
-            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) > sinstr.imm();
+            ///TODO: this is faulty because ssextend shouldn't have been called here
+            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) > static_cast<uint64_t>(sinstr.imm());
             break;
         case Opcodes::setgsr_instrc:
             thread.registers(rinstr.rd()) = static_cast<int64_t>(thread.registers(rinstr.r1())) > static_cast<int64_t>(thread.registers(rinstr.r2()));
@@ -404,7 +391,8 @@ namespace
             thread.registers(rinstr.rd()) = thread.registers(rinstr.r1()) <= thread.registers(rinstr.r2());
             break;
         case Opcodes::setleui_instrc:
-            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) <= sinstr.imm();
+            ///TODO: this is faulty because ssextend shouldn't have been called here
+            thread.registers(sinstr.rd()) = thread.registers(sinstr.r1()) <= static_cast<uint64_t>(sinstr.imm());
             break;
         case Opcodes::setlesr_instrc:
             thread.registers(rinstr.rd()) = static_cast<int64_t>(thread.registers(rinstr.r1())) <= static_cast<int64_t>(thread.registers(rinstr.r2()));
@@ -431,7 +419,7 @@ namespace
     }
 } // namespace
 
-namespace zenith::supernova
+namespace supernova
 {
     thread_return run(int argc, char **argv, Thread &thread)
     {

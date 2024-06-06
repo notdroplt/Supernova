@@ -15,10 +15,7 @@
 #include <memory>
 #include <variant>
 
-#define SUPERNOVA_CONST_NODISCARD [[gnu::const, nodiscard]]
-#define SUPERNOVA_CONST_NODISCARD_CONSTEXPR
-
-namespace zenith::supernova
+namespace supernova
 {
 
     /**
@@ -257,6 +254,36 @@ namespace zenith::supernova
     };
 
     /**
+     * @brief Sign extend immediates on small integer instructions
+     * 
+     * @param number number to sign extend
+     * 
+     * @returns int64_t sign extended number
+     */
+    [[nodiscard, gnu::const]] constexpr int64_t ssextend(uint64_t number) noexcept
+    {
+        constexpr auto mask = 0xffffc00000000000LU;
+        constexpr auto index = 46U;
+        return number >> index != 0 ? static_cast<int64_t>(number) | mask : static_cast<int64_t>(number);
+    }
+
+
+    /**
+     * @brief Sign extend immediates on long integer instructions
+     * 
+     * @param number number to sign extend
+     * 
+     * @returns int64_t sign extended number
+     */
+    [[nodiscard, gnu::const]] constexpr int64_t lsextend(uint64_t number) noexcept
+    {
+        constexpr auto mask = 0xfff8000000000000LU;
+        constexpr auto index = 51U;
+        return number >> index != 0 ? static_cast<int64_t>(number) | mask : static_cast<int64_t>(number);
+    }
+
+
+    /**
      * @brief R type instruction layout
      *
      * this class is a proxy for an `uint64_t` be interpreted as an Register
@@ -457,7 +484,7 @@ namespace zenith::supernova
          */
         [[nodiscard]] constexpr auto imm() const noexcept
         {
-            return this->m_instruction & mask_imm >> off_imm;
+            return ssextend(this->m_instruction & mask_imm >> off_imm);
         }
 
         /**
@@ -545,7 +572,7 @@ namespace zenith::supernova
          */
         [[nodiscard]] constexpr auto imm() const noexcept
         {
-            return this->m_instruction & mask_imm >> off_imm;
+            return lsextend(this->m_instruction & mask_imm >> off_imm);
         }
 
         /**

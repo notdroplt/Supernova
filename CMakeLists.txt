@@ -6,8 +6,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_compile_options(-Wall -Wextra -Werror -Wformat=2 -pedantic -pedantic-errors)
-
+if (MSVC)
+  add_compile_options(/W4 /Wall /WX)
+else()
+  add_compile_options(-Wall -Wextra -Werror -Wformat=2 -pedantic -pedantic-errors)
+endif()
 project(supernova VERSION 0.1.0 DESCRIPTION "Virtual machine for the zenith runtime")
 
 add_library(supernova supernova.cxx)
