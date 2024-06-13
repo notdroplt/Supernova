@@ -21,7 +21,7 @@ int instructions(int argc, char ** argv)
     /// R instruction test
     ///
     if (argv[1] == std::string("rinst")) {
-        const auto opc = static_cast<instruction_prefixes>(rengine() & RInstruction::mask_op);
+        const auto opc = static_cast<inspx>(rengine() & RInstruction::mask_op);
         const auto r1 = (rengine() & RInstruction::mask_r1) >> RInstruction::off_r1;
         const auto r2 = (rengine() & RInstruction::mask_r2) >> RInstruction::off_r2;
         const auto rd = (rengine() & RInstruction::mask_rd) >> RInstruction::off_rd;
@@ -48,7 +48,7 @@ int instructions(int argc, char ** argv)
     }
 
     if (argv[1] == std::string("sinst")) {
-        const auto opc = static_cast<instruction_prefixes>(rengine() & SInstruction::mask_op);
+        const auto opc = static_cast<inspx>(rengine() & SInstruction::mask_op);
         const auto r1 = (rengine() & SInstruction::mask_r1) >> SInstruction::off_r1;
         const auto rd = (rengine() & SInstruction::mask_rd) >> SInstruction::off_rd;
         const auto imm = (rengine() & SInstruction::mask_imm) >> SInstruction::off_imm;
@@ -75,7 +75,7 @@ int instructions(int argc, char ** argv)
     }
 
     if (argv[1] == std::string("linst")) {
-        const auto opc = static_cast<instruction_prefixes>(rengine() & LInstruction::mask_op);
+        const auto opc = static_cast<inspx>(rengine() & LInstruction::mask_op);
         const auto r1 = (rengine() & LInstruction::mask_r1) >> LInstruction::off_r1;
         const auto imm = (rengine() & LInstruction::mask_imm) >> LInstruction::off_imm;
 

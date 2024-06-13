@@ -6,17 +6,16 @@ namespace
     using Thread = supernova::Thread;
     using ProcessorCall = supernova::ProcessorCall;
     using DestroyFor = supernova::ThreadDestruction;
-    using Instruction = supernova::Instruction;
     using RInstr = supernova::RInstruction;
     using SInstr = supernova::SInstruction;
     using LInstr = supernova::LInstruction;
-    using Opcodes = supernova::instruction_prefixes;
+    using Opcodes = supernova::inspx;
     using thread_return = supernova::thread_return;
 
     constexpr void dispatch_pcall(Thread &thread, ProcessorCall pcall) noexcept;
 
     template <typename integer>
-    [[nodiscard]] constexpr integer fetch(Thread &thread, uint64_t address) noexcept
+    [[nodiscard]] constexpr auto fetch(Thread &thread, uint64_t address) noexcept -> integer
     {
         if (address >= thread.memsize())
         {
@@ -28,7 +27,7 @@ namespace
     }
 
     template <typename integer>
-    constexpr void place(Thread &thread, uint64_t address, integer value) noexcept
+    constexpr auto place(Thread &thread, uint64_t address, integer value) noexcept -> void
     {
         if (address >= thread.memsize())
         {
@@ -62,7 +61,7 @@ namespace
             if (function_switch == 0)
             {
                 thread.registers(Thread::pcall_1stret) = 2;
-                thread.registers(Thread::pcall_2ndnret) = thread.model()->interrupt_count;
+                thread.registers(Thread::pcall_2ndret) = thread.model()->interrupt_count;
             }
             else if (function_switch == 1)
             {
@@ -126,11 +125,9 @@ namespace
         const auto sinstr = SInstr(instruction);
         const auto linstr = LInstr(instruction);
 
-        /// how many bits can shift actually shift
-#define max_shift_size 64
-
         /// the amount of bits not accounted by an linstruction immediate
-        constexpr auto low_bit_count = 13;
+        constexpr auto low_bit_count = 13U;
+
         switch (rinstr.opcode())
         {
         case Opcodes::andr_instrc:
@@ -155,50 +152,19 @@ namespace
             thread.registers(rinstr.rd()) = ~thread.registers(rinstr.r1());
             break;
         case Opcodes::cnt_instrc:
-            thread.apply_instr(sinstr, [](auto left, [[maybe_unused]] auto imm) {
-                (void)imm;
-#if __has_builtin(__builtin_popcountl)
-                return __builtin_popcountl(left);
-#else
-                int count = 0;
-                uint64_t val = left;
-                for (; val != 0; val &= val - 1)
-                    count++;
-                return count;
-#endif
-            });
+            thread.apply_instr(sinstr, supernova::helpers::popcount);
             break;
         case Opcodes::llsr_instrc:
-            thread.apply_instr(rinstr, [](auto left, auto right) -> uint64_t {
-                if (right >= max_shift_size){
-                    return 0;
-                }
-                return left << right; 
-            });
+            thread.apply_instr(rinstr, supernova::helpers::left_shift);
             break;
         case Opcodes::llsi_instrc:
-            thread.apply_instr(sinstr, [](auto left, auto imm) -> uint64_t {
-                if (imm >= max_shift_size){
-                    return 0;
-                }
-                return left << imm;
-            });
+            thread.apply_instr(sinstr, supernova::helpers::left_shift);
             break;
         case Opcodes::lrsr_instrc:
-            thread.apply_instr(sinstr, [](auto left, auto right) -> uint64_t {
-                if (right >= max_shift_size){
-                    return 0;
-                }
-                return left >> right;
-            });
+            thread.apply_instr(sinstr, supernova::helpers::right_shift);
             break;
         case Opcodes::lrsi_instrc:
-            thread.apply_instr(sinstr, [](auto left, auto imm) -> uint64_t {
-                if (imm >= max_shift_size){
-                    return 0;
-                }
-                return left >> imm;
-            });
+            thread.apply_instr(sinstr, supernova::helpers::right_shift);
             break;
         /**/
 
@@ -226,7 +192,7 @@ namespace
             thread.apply_instr(rinstr, std::multiplies<int64_t>{});
             break;
         case Opcodes::smuli_instrc:
-            thread.apply_instr(sinstr, std::multiplies<int64_t>{});
+            thread.apply_instr(sinstr, std::multiplies<int64_t>{}, true);
             break;
         case Opcodes::udivr_instrc:
             if (thread.registers(rinstr.r2()) == 0)
@@ -258,7 +224,7 @@ namespace
                 dispatch_pcall(thread, ProcessorCall::DivisionByZero);
                 return;
             }
-            thread.apply_instr(sinstr, std::divides<int64_t>{});
+            thread.apply_instr(sinstr, std::divides<int64_t>{}, true);
             break;
         /**/
         case Opcodes::call_instrc:
@@ -277,7 +243,7 @@ namespace
         {
             auto &retval = thread.registers(sinstr.rd());
             auto &stack_ptr = thread.registers(sinstr.r1());
-            auto &imm = thread.registers(sinstr.imm());
+            auto &imm = thread.registers(sinstr.uimm());
             place<uint64_t>(thread, stack_ptr, retval + imm);
             stack_ptr += sizeof(uint64_t);
             break;
@@ -400,7 +366,7 @@ namespace
             break;
         /**/
         case Opcodes::lui_instrc:
-            thread.registers(linstr.r1()) |= linstr.imm() << low_bit_count;
+            thread.registers(linstr.r1()) |= linstr.imm() <<  low_bit_count;
             break;
         case Opcodes::auipc_instrc:
             thread.registers(linstr.r1()) = thread.progc() + (linstr.imm() << low_bit_count);
@@ -409,7 +375,7 @@ namespace
             dispatch_pcall(thread, static_cast<ProcessorCall>(linstr.imm()));
             break;
         default:
-            thread.registers(31) = rinstr.opcode();
+            thread.registers(supernova::Thread::pcall_invopc) = rinstr.opcode();
             dispatch_pcall(thread, ProcessorCall::InvalidInstruction);
             break;
         }
@@ -419,7 +385,7 @@ namespace
 
 namespace supernova
 {
-    thread_return run(int argc, char **argv, Thread &thread, bool step)
+    auto run(int argc, char **argv, Thread &thread, bool step) -> thread_return
     {
         thread.registers(0) = 0;
         if (step) {
@@ -427,8 +393,8 @@ namespace supernova
             return {true, 0};
         }
         
-        thread.registers(31) = argc;
-        thread.registers(30) = reinterpret_cast<uint64_t>(argv);
+        thread.registers(Thread::pcall_1stret) = argc;
+        thread.registers(Thread::pcall_2ndret) = reinterpret_cast<uint64_t>(argv);
 
         while (thread.signal() != DestroyFor::DoNotDestroy)
         {
@@ -444,4 +410,4 @@ namespace supernova
 
         return {false, thread.signal()};
     }
-} // namespace zenith::supernova
+} // namespace supernova
