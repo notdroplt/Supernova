@@ -23,7 +23,7 @@ namespace
             return 0;
         }
         // NOLINTNEXTLINE: yeah it works
-        return *reinterpret_cast<integer *>(thread.memory() + address);
+        return *reinterpret_cast<integer *>(thread.memory().get() + address);
     }
 
     template <typename integer>
@@ -35,7 +35,7 @@ namespace
             return;
         }
         // NOLINTNEXTLINE: looks good to me tho
-        *reinterpret_cast<integer *>(thread.memory() + address) = value;
+        *reinterpret_cast<integer *>(thread.memory().get() + address) = value;
     }
 
     void hwpush64(Thread &thread, uint64_t value) noexcept
@@ -100,13 +100,13 @@ namespace
             thread.pcall() = pcall;
         }
 
-        for (const uint64_t reg : thread.allregs())
+        hwpush64(thread, thread.progc());
+
+        for (auto&& reg : thread.allregs())
         {
             hwpush64(thread, reg);
         }
-
-        hwpush64(thread, thread.progc());
-
+        
         thread.progc() = fetch<uint64_t>(thread, thread.intvec() + pcall * sizeof(uint64_t));
     }
 
@@ -395,6 +395,8 @@ namespace supernova
         
         thread.registers(Thread::pcall_1stret) = argc;
         thread.registers(Thread::pcall_2ndret) = reinterpret_cast<uint64_t>(argv);
+
+        // code will read itself
 
         while (thread.signal() != DestroyFor::DoNotDestroy)
         {

@@ -15,19 +15,24 @@ else()
     add_compile_options(-Wall -Wextra -Werror -Wformat=2 -pedantic -pedantic-errors)
 endif()
 
-add_library(supernova supernova.cxx)
+add_library(supernova supernova.cxx read_file.cxx)
 
 
 target_compile_features(supernova INTERFACE cxx_std_23)
+
+add_executable(snvm runner.cxx)
+
+target_link_libraries(snvm PUBLIC supernova)
 
 set(DOXYGEN_SEARCHENGINE NO)
 set(DOXYGEN_ENABLE_PREPROCESSING YES)
 set(DOXYGEN_MACRO_EXPANSION YES)
 set(DOXYGEN_GENERATE_TREEVIEW YES)
  
-add_compile_definitions(SUPERNOVA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR})
-add_compile_definitions(SUPERNOVA_VERSION_MINOR=${PROJECT_VERSION_MINOR})
-add_compile_definitions(SUPERNOVA_VERSION_PATCH=${PROJECT_VERSION_PATCH})
+add_compile_definitions(SUPERNOVA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}LLU)
+add_compile_definitions(SUPERNOVA_VERSION_MINOR=${PROJECT_VERSION_MINOR}LLU)
+add_compile_definitions(SUPERNOVA_VERSION_PATCH=${PROJECT_VERSION_PATCH}LLU)
+add_compile_definitions(SUPERNOVA_VERSION="${PROJECT_VERSION}")
 
 if (DOXYGEN_FOUND)
     doxygen_add_docs(doxygen ${PROJECT_SOURCE_DIR} ../docs)
@@ -39,7 +44,7 @@ enable_testing()
 add_subdirectory(tests/) 
 install(TARGETS supernova DESTINATION lib/zenith)
 
-set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_PACKAGE_NAME "supernova")
 set(CPACK_PACKAGE_VENDOR "notdroplt")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Supernova - Zenith runtime virtual machine")

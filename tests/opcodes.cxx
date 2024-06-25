@@ -16,7 +16,7 @@ int test_instruction(Thread &thread, RInstruction instr, std::mt19937_64 &rengin
     thread.registers(1) = r1;
     thread.registers(2) = r2;
 
-    auto instr_ptr = reinterpret_cast<RInstruction *>(thread.memory());
+    auto instr_ptr = reinterpret_cast<RInstruction *>(thread.memory().get());
     *instr_ptr = instr;
 
     std::cerr << "== testing instruction `" << std::setw(4) << std::setfill(' ') << instrname << "`, r1 = `" << std::setw(16) << std::setfill('0') << thread.registers(1) << "` and r2  = `" << std::setw(16) << thread.registers(2) << "`: ";
@@ -37,7 +37,7 @@ int test_instruction(Thread &thread, SInstruction instr, std::mt19937_64 &rengin
 
     thread.registers(1) = r1;
     thread.progc() = 0;
-    auto instr_ptr = reinterpret_cast<SInstruction *>(thread.memory());
+    auto instr_ptr = reinterpret_cast<SInstruction *>(thread.memory().get());
     instr = SInstruction(instr.opcode(), instr.r1(), instr.rd(), imm);
     *instr_ptr = instr;
 
@@ -74,7 +74,7 @@ int opcodes(int, char **)
         .last_instruction_index = in_instrc,
     };
 
-    Thread thread{memory.get(), 8, &thread_model};
+    Thread thread{std::move(memory), 8, &thread_model};
 
     std::cerr << "== thread constructed successfully!\n"
               << std::hex;

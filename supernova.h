@@ -13,6 +13,25 @@
 #include <array>
 #include <cstdint>
 #include <type_traits>
+#include <memory>
+
+#ifndef SUPERNOVA_VERSION_MAJOR
+/** should be set if compiling with cmake, this is just a failback for lsp servers */
+#   define SUPERNOVA_VERSION_MAJOR 0LLU
+#endif
+#ifndef SUPERNOVA_VERSION_MINOR
+/** should be set if compiling with cmake, this is just a failback for lsp servers */
+#   define SUPERNOVA_VERSION_MINOR 0LLU
+#endif
+#ifndef SUPERNOVA_VERSION_PATCH
+/** should be set if compiling with cmake, this is just a failback for lsp servers */
+#   define SUPERNOVA_VERSION_PATCH 0LLU
+#endif
+
+#ifndef SUPERNOVA_HEADER_DEFINED
+#define SUPERNOVA_HEADER_DEFINED 1
+#endif 
+
 namespace supernova
 {
     namespace helpers
@@ -146,10 +165,10 @@ namespace supernova
         llsi_instrc = 0x09, /**< `lls r#, r#, imm` : S type */
         lrsr_instrc = 0x0A, /**< `lrs r#, r#, r#`  : R type */
         lrsi_instrc = 0x0B, /**< `lrs r#, r#, imm` : S type */
-        alsr_instrc = 0x0C, /**< `als r#, r#, r#`  : R type */
-        alsi_instrc = 0x0D, /**< `als r#, r#, imm` : S type */
-        arsr_instrc = 0x0E, /**< `ars r#, r#, r#`  : R type */
-        arsi_instrc = 0x0F, /**< `ars r#, r#, imm` : S type */
+        /* reserved : R type */
+        /* reserved : S type */
+        /* reserved : R type */
+        /* reserved : S type */
         /** @} */           /* InPG0 */
 
         /**
@@ -230,11 +249,11 @@ namespace supernova
         lui_instrc = 0x38,     /**< `lui r#, imm`        : L type */
         auipc_instrc = 0x39,   /**< `auipc r#, imm`      : L type */
         pcall_instrc = 0x3A,   /**< `pcall r#, imm`      : L type */
-        pbreak_instrc = 0x3B,  /**< `pbreak 0`           : L type */
-        bout_instrc = 0x3C,    /**< `outb r#, r#, 0`     : S type */
-        out_instrc = 0x3D,     /**< `outw r#, r#, 0`     : S type */
-        bin_instrc = 0x3E,     /**< `inb r#, r#, 0`      : S type */
-        in_instrc = 0x3F,      /**< `inw r#, r#, 0`      : S type */
+        /* reserved : S type */
+        bout_instrc = 0x3C,    /**< `outb r#, r#, 0`    : R type */
+        out_instrc = 0x3D,     /**< `outw r#, r#, 0`    : S type */
+        bin_instrc = 0x3E,     /**< `inb r#, r#, 0`     : R type */
+        in_instrc = 0x3F,      /**< `inw r#, r#, 0`     : S type */
         /** @} */              /** InPG3*/
 
         /** group 4, floating point operation instructions */
@@ -625,21 +644,25 @@ namespace supernova
      */
     enum config_flags_1 : uint16_t
     {
-        confflags_paging = 0x0000,     /**< support for memory paging */
-        confflags_stack = 0x0001,      /**< support for stack instructions */
-        confflags_intdiv = 0x0002,     /**< support for integer division instructions */
-        confflags_interrupts = 0x0004, /**< support for software interrupts */
-        confflags_floats = 0x0008,     /**< support for hardware floating point */
-        confflags_fences = 0x0010,     /**< support for memory fences */
-        confflags_condset = 0x0020,    /**< support for conditional get/set */
-        confflags_condmove = 0x0040,   /**< support for conditional move */
-        confflags_multi64 = 0x0080,    /**< multiple execution instructions, 64 bit */
-        confflags_multi128 = 0x0100,   /**< multiple execution instructions, 128 bit */
-        confflags_multi256 = 0x0200,   /**< multiple execution instructions, 256 bit */
-        confflags_multi512 = 0x0400,   /**< multiple execution instructions, 512 bit */
-        confflags_ioint = 0x0800,      /**< @b programmable hardware interrupts */
-        confflags_hosted = 0x1000      /**< supports hosted environment functions */
+        confflags_paging     = 0x0001, /**< support for memory paging */
+        confflags_stack      = 0x0002, /**< support for stack instructions */
+        confflags_intdiv     = 0x0004, /**< support for integer division instructions */
+        confflags_interrupts = 0x0008, /**< support for software interrupts */
+        confflags_floats     = 0x0010, /**< support for hardware floating point */
+        confflags_fences     = 0x0020, /**< support for memory fences */
+        confflags_condset    = 0x0040, /**< support for conditional get/set */
+        confflags_condmove   = 0x0080, /**< support for conditional move */
+        confflags_multi64    = 0x0100, /**< multiple execution instructions, 64 bit */
+        confflags_multi128   = 0x0200, /**< multiple execution instructions, 128 bit */
+        confflags_multi256   = 0x0400, /**< multiple execution instructions, 256 bit */
+        confflags_multi512   = 0x0800, /**< multiple execution instructions, 512 bit */
+        confflags_ioint      = 0x1000, /**< @b programmable hardware interrupts */
+        confflags_hosted     = 0x2000  /**< supports hosted environment functions */
     };
+
+    inline constexpr auto config_value = confflags_stack | confflags_intdiv | confflags_hosted | confflags_ioint;
+    inline constexpr auto int_count = (2LLU << 51) - 1;
+
 
     struct thread_model_t
     {
@@ -711,8 +734,8 @@ namespace supernova
          * @param memory_size size of memory in bytes
          * @param model thread information
         */
-        Thread(uint8_t *memory, uint64_t memory_size, struct thread_model_t *model)
-            : m_memory{memory}, m_memory_size{memory_size}, m_model{model}
+        Thread(std::unique_ptr<uint8_t[]> memory, uint64_t memory_size, struct thread_model_t *model, uint64_t entry_point = 0)
+            : m_memory{std::move(memory)}, m_program_counter{entry_point}, m_memory_size{memory_size}, m_model{model}
         {
         }
 
@@ -822,7 +845,7 @@ namespace supernova
 
     private:
         std::array<uint64_t, register_count> m_registers{{0}}; /**< thread registers */
-        uint8_t *m_memory{};                                   /**< thread memory pointer */
+        std::unique_ptr<uint8_t[]> m_memory{};                 /**< thread memory pointer */
         uint64_t m_program_counter{0};                         /**< thread instructon pointer */
         uint64_t m_int_vector{0};                              /**< interrupt vector pointer*/
         uint64_t m_memory_size;                                /**< thread memory size */
@@ -924,32 +947,60 @@ namespace supernova
         */
         struct memory_map
         {
+            uint64_t magic;
+
             /** start of the memory map inside the file, if `clear` is set it is just ignored */
-            uint64_t map_start;
+            uint64_t start;
 
             /** size of the memory map both in the file and the virtual memory, in bytes*/
-            uint64_t map_size;
+            uint64_t size;
 
             /** start of the memory map inside the virtual memory*/
-            uint64_t map_offset;
+            uint64_t offset;
 
             /** flags for the memory region defined*/
             memory_flags flags;
         } __attribute__((aligned(sizeof(uint64_t))));
-    }; // namespace headers
 
-    /**
-     * @brief defines a header for a runnable code on the virtual machine
-     *
-     * @note all positions should \b not consider the header offset
-     */
-    struct virtmacheader_t
-    {
-        static constexpr auto magic_value = 0x6d766874696e655aLLU;
-    };
+        /** master magic: "Zenithvm" */
+        constexpr auto const master_magic = 0x6D766874696E655ALLU;
+
+        /** memory map magic: "mem_map!" */
+        constexpr auto const memmap_magic = 0x2170616D5f6D656DLLU;
+
+
+
+
+        /** version: major(16bit):minor(16bit):patch(32bit)*/
+        constexpr auto const snvm_version = SUPERNOVA_VERSION_MAJOR << 48U | SUPERNOVA_VERSION_MINOR << 32 | SUPERNOVA_VERSION_PATCH;
+
+        enum read_status : uint8_t{
+            ReadOk,
+            FileNotFound,
+            InvalidHeader,
+            InvalidEntryPoint,
+            VersionMismatch,
+            MagicMismatch,
+            InvalidMemoryRegion,
+            FileError
+        };
+
+        struct read_return {
+            std::unique_ptr<uint8_t[]> memory_pointer{nullptr};
+            uint64_t memory_size{0};
+            read_status status{ReadOk};
+            uint64_t entry_point{-1LLU};
+        };
+
+        auto read_file(char const * filename) -> read_return;
+
+    }; // namespace headers
 
     /***/
     using thread_return = std::pair<bool, int>;
+
+
+
 
     /**
      * @brief run code from a file

@@ -31,12 +31,19 @@ L type | immediate | r1 | op
 
 `r00` is hardwired to zero, `r01` and `r02` are required for the interrupt stack
 
-register index | used for
-:-: | :-:
-r00 | zero register
-r01 | stack pointer
-r02 | frame pointer
-r03 - r31 | registers that work as arguments to functions
+register index | used as | requirements
+:-: | :-:               | :-:
+r00 | zero register     | none, writing to is a no-op
+r01 | stack pointer     | needs to be valid for `pcall`
+r02 | frame pointer     | needs to be vaild for `pcall`
+r03 - r25 | general use | none
+r26 | code area pointer | saved for PIC
+r27 | data area pointer | saved for PIC
+r28 | `pcall` parameter | interrupt space   
+r29 | `pcall` parameter | function switch   
+r30 | `pcall` return    | save before pcall 
+r31 | `pcall` return    | save before pcall 
+
 
 ## Instruction Set Resume
 
@@ -292,17 +299,37 @@ r03 - r31 | registers that work as arguments to functions
   - jgu [opcode `0x2C`, S type]
     - jump to a place in memory when `rd > r1`, both unsigned
     - executes:
-      - `if (u64(rd) - u64(r1)) & (sign bit) == 0`
+      - `if (u64(rd) - u64(r1)) & (sign bit)`
         - `pc <- pc + imm * 8` 
       - `else`
         - `pc <- pc + 8`
-      - `pc <-  ? pc + 8 : pc + imm * 8`
 
-  - jleu [opcode `0x2D`, S type]
-    - jump to a place in memory when `rd <= r1`
+  - jgs [opcode `0x2D`, S type]
+    - jump to a place in memory when `rd > r1`, both signed
     - executes:
-      - `pc <-  (rd - r1) & (sign bit) ? pc + 8 :`
+      - `if (i64(rd) - i64(r1)) & (sign bit)`
+        - `pc <- pc + imm * 8` 
+      - `else`
+        - `pc <- pc + 8`
+      
+  - jleu [opcode `0x2E`, S type]
+    - jump to a place in memory when `rd <= r1`, both unsigned
+    - executes:
+      - `if (i64(rd) - i64(r1)) & (sign bit) == 0`
+        - `pc <- pc + imm * 8` 
+      - `else`
+        - `pc <- pc + 8`
 
+  - jleu [opcode `0x2F`, S type]
+    - jump to a place in memory when `rd <= r1`, both signed
+    - executes:
+      - `if (i64(rd) - i64(r1)) & (sign bit) == 0`
+        - `pc <- pc + imm * 8` 
+      - `else`
+        - `pc <- pc + 8`
+
+- group three:
+  - setgur [opcode `0x30`, R type]
 ## interrupts
 
 ### default interrupts/exceptions used by the virtual machine
@@ -376,9 +403,8 @@ output registers:
          `1` if interrupts are possible, but only in the address specified by `r29`,  
          `2` if interrupts are possible anywhere defined by the program,  
 
-- `r30`: in case `r31 != 0`, defines the amount of interrupts the processor is able to handle
-
-- `r29`: in case `r31 == 1`, sets bit flags to which hardware interrupts are supported
+- `r30`: in case `r31 == 1`, sets bit flags to which hardware interrupts are supported
+         in case `r31 == 2`, defines the amount of interrupts the processor is able to handle
 
 trashed registers: none
 
@@ -386,7 +412,7 @@ trashed registers: none
 
 input registers:
 
-- `r31` (possibly): in case where `pcall 0:0` returned `2`, set the interrupt vector register to the specified pointer, else value is just ignored
+- `r31` (possibly): in case where `pcall` with `0:0` returned `2`, set the interrupt vector register to the specified pointer, else value is just ignored
 
 output registers: none
 
