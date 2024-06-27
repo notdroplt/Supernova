@@ -22,6 +22,9 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
         return {read_status::InvalidHeader};
     }
 
+     // NOLINTNEXTLINE: there is not much to do
+    file.read(reinterpret_cast<char *>(&main), sizeof(main));
+
     if (main.magic != headers::master_magic)
     {
         return {read_status::MagicMismatch};
@@ -40,8 +43,7 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
         return {read_status::InvalidEntryPoint};
     }
 
-    // NOLINTNEXTLINE: there is not much to do
-    file.read(reinterpret_cast<char *>(&main), sizeof(main));
+   
 
     if (size < (sizeof(main_header) + sizeof(memory_map) * main.memory_regions))
     {

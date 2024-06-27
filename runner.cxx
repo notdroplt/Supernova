@@ -57,7 +57,7 @@ int main(int argc, char ** argv) {
     auto file_info = supernova::headers::read_file(argv[1]);
 
     if (file_info.status != supernova::headers::read_status::ReadOk) {
-        std::cerr << "could run file, status code = " << file_info.status << '\n';
+        std::cerr << "could run file, status code = " << static_cast<int>(file_info.status) << '\n';
         return file_info.status;
     }
 
