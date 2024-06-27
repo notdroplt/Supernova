@@ -7,7 +7,8 @@
 
 using namespace supernova;
 
-int test_instruction(Thread &thread, RInstruction instr, std::mt19937_64 &rengine, const char *instrname, auto expected_fn)
+template <typename Func>
+int test_instruction(Thread &thread, RInstruction instr, std::mt19937_64 &rengine, const char *instrname, Func expected_fn)
 {
     const uint64_t r1 = rengine();
     const uint64_t r2 = rengine();

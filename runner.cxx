@@ -14,7 +14,6 @@ void print_help() {
         "  -h --help           | display this help\n"
         "  -v --version        | print current version\n"
         "  -p --properties     | get current virtual machine properties\n";
-
 }
 
 void print_properties() {

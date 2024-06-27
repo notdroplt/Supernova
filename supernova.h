@@ -44,13 +44,13 @@ namespace supernova
          *
          * @return variable shifted, also capped to not go over if shift size is greater than the size of the variable
          */
-        constexpr auto left_shift = [](auto &&left, auto &&right) -> auto
+        constexpr auto left_shift = [](auto left, auto right) -> uint64_t
         {
             if (sizeof(left) <= static_cast<decltype(sizeof(left))>(right))
             {
-                return static_cast<std::remove_cvref_t<decltype(left)>>(0);
+                return 0;
             }
-            return static_cast<std::remove_cvref_t<decltype(left)>>(left << right);
+            return left << right;
         };
 
         /**
@@ -61,13 +61,13 @@ namespace supernova
          *
          * @return variable shifter, capped to not go over UB
          */
-        constexpr auto right_shift = [](auto &&left, auto &&right) -> auto
+        constexpr auto right_shift = [](auto &&left, auto &&right) -> uint64_t
         {
             if (sizeof(left) <= static_cast<decltype(sizeof(left))>(right))
             {
-                return static_cast<std::remove_cvref_t<decltype(left)>>(0);
+                return 0;
             }
-            return static_cast<std::remove_cvref_t<decltype(left)>>(left >> right);
+            return left >> right;
         };
 
         constexpr auto popcount = [](auto &&left, auto &&right [[maybe_unused]]) -> auto
@@ -327,7 +327,7 @@ namespace supernova
      *
      * @returns int64_t sign extended number
      */
-    [[nodiscard, gnu::const]] constexpr auto ssextend(uint64_t &&number) noexcept
+    [[nodiscard, gnu::const]] constexpr auto ssextend(uint64_t &&number) noexcept -> int64_t
     {
         constexpr auto mask = 0xffffc00000000000LU;
         constexpr auto index = 45U;
@@ -341,7 +341,7 @@ namespace supernova
      *
      * @returns int64_t sign extended number
      */
-    [[nodiscard, gnu::const]] constexpr auto lsextend(uint64_t &&number) noexcept
+    [[nodiscard, gnu::const]] constexpr auto lsextend(uint64_t &&number) noexcept -> int64_t
     {
         constexpr auto mask = 0xfff8000000000000LU;
         constexpr auto index = 50U;
@@ -411,35 +411,30 @@ namespace supernova
          * @brief get the opcode in this instruction
          * @return opcode
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto opcode(this Self &&self) noexcept { return static_cast<inspx>(std::forward<Self>(self).m_instruction & mask_op); }
+        [[nodiscard]] constexpr auto opcode() const noexcept -> inspx { return static_cast<inspx>(this->m_instruction & mask_op); }
 
         /**
          * @brief get the first register in this instruction
          * @return first register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto r1(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_r1) >> off_r1; }
+        [[nodiscard]] constexpr auto r1() const noexcept -> uint8_t { return (this->m_instruction & mask_r1) >> off_r1; }
 
         /**
          * @brief get the second register in this instruction
          * @return second register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto r2(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_r2) >> off_r2; }
+        [[nodiscard]] constexpr auto r2() const noexcept -> uint8_t { return (this->m_instruction & mask_r2) >> off_r2; }
 
         /**
          * @brief get the destination register in this instruction
          * @return destination register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto rd(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_rd) >> off_rd; }
+        [[nodiscard]] constexpr auto rd() const noexcept -> uint8_t { return (this->m_instruction & mask_rd) >> off_rd; }
 
         /**
          * @brief cast this instruction to an `uint64_t`
          */
-        template <typename Self>
-        [[nodiscard]] constexpr explicit operator uint64_t(this Self &&self) noexcept { return std::forward<Self>(self).m_instruction; }
+        [[nodiscard]] constexpr explicit operator uint64_t() const noexcept { return this->m_instruction; }
 
     private:
         /** raw instruction value */
@@ -510,42 +505,36 @@ namespace supernova
          * @brief get the opcode in this instruction
          * @return opcode
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto opcode(this Self &&self) noexcept { return static_cast<inspx>(std::forward<Self>(self).m_instruction & mask_op); }
+        [[nodiscard]] constexpr auto opcode() const noexcept -> inspx { return static_cast<inspx>(this->m_instruction & mask_op); }
 
         /**
          * @brief get the first register in this instruction
          * @return first register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto r1(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_r1) >> off_r1; }
+        [[nodiscard]] constexpr auto r1() const noexcept -> uint8_t { return (this->m_instruction & mask_r1) >> off_r1; }
 
         /**
          * @brief get the destination register in this instruction
          * @return destination register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto rd(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_rd) >> off_rd; }
+        [[nodiscard]] constexpr auto rd() const noexcept -> uint8_t { return (this->m_instruction & mask_rd) >> off_rd; }
 
         /**
          * @brief get the second register in this instruction, sign extended
          * @return second register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto imm(this Self &&self) noexcept { return ssextend((std::forward<Self>(self).m_instruction & mask_imm) >> off_imm); }
+        [[nodiscard]] constexpr auto imm() const noexcept -> int64_t { return ssextend((this->m_instruction & mask_imm) >> off_imm); }
 
         /**
          * @brief get the second register in this instruction, do not extend sign
          * @return second register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto uimm(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_imm) >> off_imm; }
+        [[nodiscard]] constexpr auto uimm() const noexcept -> uint64_t { return (this->m_instruction & mask_imm) >> off_imm; }
 
         /**
          * @brief cast this instruction as an `uint64_t`
          */
-        template <typename Self>
-        [[nodiscard]] constexpr explicit operator uint64_t(this Self &&self) noexcept { return std::forward<Self>(self).m_instruction; }
+        [[nodiscard]] constexpr explicit operator uint64_t() const noexcept { return this->m_instruction; }
 
     private:
         /** raw instruction value */
@@ -604,35 +593,30 @@ namespace supernova
          * @brief get the opcode in this instruction
          * @return opcode
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto opcode(this Self &&self) noexcept { return static_cast<inspx>(std::forward<Self>(self).m_instruction & mask_op); }
+        [[nodiscard]] constexpr auto opcode() const noexcept -> inspx { return static_cast<inspx>(this->m_instruction & mask_op); }
 
         /**
          * @brief get the first register in this instruction
          * @return first register index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto r1(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_r1) >> off_r1; }
+        [[nodiscard]] constexpr auto r1() const noexcept -> uint8_t { return (this->m_instruction & mask_r1) >> off_r1; }
 
         /**
          * @brief get the immediate in this instruction, sign extended
          * @return immediate value
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto imm(this Self &&self) noexcept { return lsextend((std::forward<Self>(self).m_instruction & mask_imm) >> off_imm); }
+        [[nodiscard]] constexpr auto imm() const noexcept -> int64_t { return lsextend(this->m_instruction & mask_imm) >> off_imm; }
 
         /**
          * @brief get the second register in this instruction
          * @return immediate value
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto uimm(this Self &&self) noexcept { return (std::forward<Self>(self).m_instruction & mask_imm) >> off_imm; }
+        [[nodiscard]] constexpr auto uimm() const noexcept -> uint64_t { return (this->m_instruction & mask_imm) >> off_imm; }
 
         /**
          * @brief cast this instruction as an `uint64_t`
          */
-        template <typename Self>
-        [[nodiscard]] constexpr explicit operator uint64_t(this Self &&self) noexcept { return std::forward<Self>(self).m_instruction; }
+        [[nodiscard]] constexpr explicit operator uint64_t() noexcept { return this->m_instruction; }
 
     private:
         /** raw instruction value */
@@ -744,36 +728,31 @@ namespace supernova
          * @param index index of register to get value from
          * @return reference of the register on given index
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto registers(this Self &&self, std::size_t index) noexcept -> auto && { return std::forward<Self>(self).m_registers.at(index); }
+        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto& { return this->m_registers.at(index); }
 
         /**
          * @brief get all registers in an array
          * @return reference to the array of registers
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto allregs(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_registers; }
+        [[nodiscard]] constexpr auto allregs() noexcept -> auto& { return this->m_registers; }
 
         /**
          * @brief get the program counter register
          * @return program counter reference
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto progc(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_program_counter; }
+        [[nodiscard]] constexpr auto progc() noexcept -> auto& { return this->m_program_counter; }
 
         /**
          * @brief get the interrupt vector register
          * @return interrupt vector reference
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto intvec(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_int_vector; }
+        [[nodiscard]] constexpr auto intvec() noexcept -> auto& { return this->m_int_vector; }
 
         /**
          * @brief get the size of the memory in bytes
          * @return memory byte size
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto memsize(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_memory_size; }
+        [[nodiscard]] constexpr auto memsize() const noexcept -> auto { return this->m_memory_size; }
 
         /**
          * @brief get the pointer to the working memory region
@@ -781,29 +760,25 @@ namespace supernova
          *
          * @note `fetch` is not implemented as a member function as it requires processor calls
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto memory(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_memory; }
+        [[nodiscard]] constexpr auto memory() noexcept -> auto& { return this->m_memory; }
 
         /**
          * @brief get the model information register
          * @return model information register value
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto model(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_model; }
+        [[nodiscard]] constexpr auto model() const noexcept -> auto { return this->m_model; }
 
         /**
          * @brief get the current processor call status
          * @return processor call reference
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto pcall(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_pcall; }
+        [[nodiscard]] constexpr auto pcall() noexcept -> auto& { return this->m_pcall; }
 
         /**
          * @brief get the current processor signal
          * @return processor signal reference
          */
-        template <typename Self>
-        [[nodiscard]] constexpr auto signal(this Self &&self) noexcept -> auto && { return std::forward<Self>(self).m_signal; }
+        [[nodiscard]] constexpr auto signal() noexcept -> auto& { return this->m_signal; }
 
         /**
          * @brief apply a function from Rinstruction values
@@ -990,6 +965,9 @@ namespace supernova
             uint64_t memory_size{0};
             read_status status{ReadOk};
             uint64_t entry_point{-1LLU};
+            read_return() = default;
+            read_return(read_status stat, uint64_t mem_size=0, uint64_t entry=0, std::unique_ptr<uint8_t[]> memory = nullptr) 
+            : memory_pointer(std::move(memory)), memory_size{mem_size}, status{stat}, entry_point{entry} {}
         };
 
         auto read_file(char const * filename) -> read_return;

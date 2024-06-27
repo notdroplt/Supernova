@@ -27,13 +27,13 @@ auto test_case(char const * fname, read_return expected) {
 auto readfile(int, char** ) {
     read_return read_ret;
 
-    if (test_case("01234567.89a", read_return{.status = FileNotFound})) {
+    if (test_case("01234567.89a", read_return{FileNotFound})) {
         return 1;}
     
-    if (test_case("smaller.spn", read_return{.status = InvalidHeader})){
+    if (test_case("smaller.spn", read_return{InvalidHeader})){
         return 1;}
     
-    if (test_case("invalid_magic.spn", read_return{.status = MagicMismatch})){
+    if (test_case("invalid_magic.spn", read_return{MagicMismatch})){
         return 1;}
 
     return 0;
