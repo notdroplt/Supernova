@@ -53,25 +53,18 @@ namespace
 
     constexpr void pcall_minus_one(Thread &thread)
     {
-        auto const &interrupt_space = thread.registers(Thread::pcall_intspace);
-        auto const &function_switch = thread.registers(Thread::pcall_fswitch);
-        switch (interrupt_space)
+        switch (thread.registers(Thread::pcall_reg))
         {
-        case 0:
-            if (function_switch == 0)
-            {
-                thread.registers(Thread::pcall_1stret) = 2;
-                thread.registers(Thread::pcall_2ndret) = thread.model()->interrupt_count;
-            }
-            else if (function_switch == 1)
-            {
-                thread.intvec() = thread.registers(Thread::pcall_1stret);
-            }
+        case 0x0000000000000000:
+            thread.registers(Thread::pcall_1stret) = 2;
+            thread.registers(Thread::pcall_2ndret) = thread.model()->interrupt_count;
             break;
-        case 1:
+        case 0x0000000000000001:
+            thread.intvec() = thread.registers(Thread::pcall_1stret);
+            break;
+        case 0x0000000100000000:
             thread.registers(Thread::pcall_1stret) = 0;
             break;
-        case 2:
 
         default:
             break;
@@ -102,10 +95,8 @@ namespace
 
         hwpush64(thread, thread.progc());
 
-        for (auto&& reg : thread.allregs())
-        {
-            hwpush64(thread, reg);
-        }
+        hwpush64(thread, thread.registers(1));
+        hwpush64(thread, thread.registers(2));
         
         thread.progc() = fetch<uint64_t>(thread, thread.intvec() + pcall * sizeof(uint64_t));
     }

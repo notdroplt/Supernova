@@ -11,7 +11,7 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
 
     if (!file)
     {
-        return {read_status::FileNotFound};
+        return read_return{read_status::FileNotFound};
     }
 
     uint64_t size = file.tellg();
@@ -19,7 +19,7 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
 
     if (size < sizeof(main_header))
     {
-        return {read_status::InvalidHeader};
+        return read_return{read_status::InvalidHeader};
     }
 
      // NOLINTNEXTLINE: there is not much to do
@@ -27,7 +27,7 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
 
     if (main.magic != headers::master_magic)
     {
-        return {read_status::MagicMismatch};
+        return read_return{read_status::MagicMismatch};
     }
 
     constexpr auto patch_mask = 0xFFFFFFFF;
@@ -35,19 +35,19 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
     // patch versions should not have worring issues
     if ((main.version | patch_mask) < (snvm_version | patch_mask))
     {
-        return {read_status::VersionMismatch};
+        return read_return{read_status::VersionMismatch};
     }
 
     if (main.entry_point > main.memory_size)
     {
-        return {read_status::InvalidEntryPoint};
+        return read_return{read_status::InvalidEntryPoint};
     }
 
    
 
     if (size < (sizeof(main_header) + sizeof(memory_map) * main.memory_regions))
     {
-        return {read_status::InvalidHeader};
+        return read_return{read_status::InvalidHeader};
     }
 
     auto memory_maps = std::make_unique<memory_map[]>(main.memory_regions);
@@ -63,17 +63,17 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
         auto &region = memory_maps[i];
         if (region.magic != memmap_magic)
         {
-            return {read_status::MagicMismatch};
+            return read_return{read_status::MagicMismatch};
         }
 
         if (region.offset + region.size > main.memory_size)
         {
-            return {read_status::InvalidMemoryRegion};
+            return read_return{read_status::InvalidMemoryRegion};
         }
 
         if (region.start + region.size > size)
         {
-            return {read_status::InvalidMemoryRegion};
+            return read_return{read_status::InvalidMemoryRegion};
         }
     }
 
@@ -101,7 +101,7 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
         file.read(reinterpret_cast<char *>(memory.get() + region.offset), region.size);
     }
 
-    return {
+    return read_return{
         ReadOk,
         main.memory_size,
         main.entry_point,

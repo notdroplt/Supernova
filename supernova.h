@@ -44,7 +44,7 @@ namespace supernova
          *
          * @return variable shifted, also capped to not go over if shift size is greater than the size of the variable
          */
-        constexpr auto left_shift = [](auto left, auto right) -> uint64_t
+        constexpr auto left_shift(uint64_t left, uint64_t right) -> uint64_t
         {
             if (sizeof(left) <= static_cast<decltype(sizeof(left))>(right))
             {
@@ -61,7 +61,7 @@ namespace supernova
          *
          * @return variable shifter, capped to not go over UB
          */
-        constexpr auto right_shift = [](auto &&left, auto &&right) -> uint64_t
+        constexpr auto right_shift(uint64_t left, uint64_t right) -> uint64_t
         {
             if (sizeof(left) <= static_cast<decltype(sizeof(left))>(right))
             {
@@ -70,7 +70,7 @@ namespace supernova
             return left >> right;
         };
 
-        constexpr auto popcount = [](auto &&left, auto &&right [[maybe_unused]]) -> auto
+        constexpr auto popcount(uint64_t left, uint64_t right [[maybe_unused]]) -> uint64_t
         {
 #if __has_builtin(__builtin_popcountl)
             return __builtin_popcountl(left);
@@ -90,31 +90,10 @@ namespace supernova
      * instruction types:
      *
      * R type (registers only) => register-register-register
-     *
-     * bitwise representation:
-     * @code
-     * [63-24][23-19][18-14][13-8][7-0]
-     *    |      |      |     |      |
-     *  [pad]  [r2]   [r1]   [rd] [opcode]
-     * @endcode
-     *
+     * 
      * S type ("small" immediate) => register-register-immediate
      *
-     * bitwise representation:
-     * @code
-     * [63-19][18-14][13-8][7-0]
-     *    |      |     |     |
-     *  [imm]  [r1]  [rd] [opcode]
-     * @endcode
-     *
      * L type ("long" immediate) => register-immediate
-     *
-     * bitwise representation:
-     * @code
-     * [63-14][13-8][7-0]
-     *    |     |     |
-     *  [imm]  [rd] [opcode]
-     * @endcode
      *
      * base instructions are split into 8 groups (named after values at bits [6,4]):
      *
@@ -128,11 +107,6 @@ namespace supernova
      * - group 1: math / control flow instructions, span opcodes `0x10` to `0x1F`
      * - group 2: memory / control flow instructions, span opcodes `0x20` to `0x2F`
      * - group 3: conditional set / interrupts / IO, span opcodes `0x30` to `0x3F`
-     *
-     *
-     * on groups 0 and 1, the LSB defines if the instruction is an R type (when 0)
-     * or an S type (when 1) group 2, has only S types and the `jal` instruction
-     * (L type) group 3 is always L type
      */
     enum inspx : uint8_t
     {
@@ -327,11 +301,11 @@ namespace supernova
      *
      * @returns int64_t sign extended number
      */
-    [[nodiscard, gnu::const]] constexpr auto ssextend(uint64_t &&number) noexcept -> int64_t
+    [[nodiscard, gnu::const]] constexpr auto ssextend(uint64_t number) noexcept -> int64_t
     {
-        constexpr auto mask = 0xffffc00000000000LU;
-        constexpr auto index = 45U;
-        return (number >> index) != 0 ? static_cast<int64_t>(number) | mask : static_cast<int64_t>(number);
+        constexpr auto neg_mask = 0xFFFF000000000000LU;
+        constexpr auto sign_bit = 0x0000800000000000LU;
+        return (number & sign_bit) != 0 ? static_cast<int64_t>(number | neg_mask) : static_cast<int64_t>(number);
     }
 
     /**
@@ -341,11 +315,11 @@ namespace supernova
      *
      * @returns int64_t sign extended number
      */
-    [[nodiscard, gnu::const]] constexpr auto lsextend(uint64_t &&number) noexcept -> int64_t
+    [[nodiscard, gnu::const]] constexpr auto lsextend(uint64_t number) noexcept -> int64_t
     {
-        constexpr auto mask = 0xfff8000000000000LU;
-        constexpr auto index = 50U;
-        return (number >> index) != 0 ? static_cast<int64_t>(number) | mask : static_cast<int64_t>(number);
+        constexpr auto neg_mask = 0xFFF0000000000000LU;
+        constexpr auto sign_bit = 0x0008000000000000LU;
+        return (number & sign_bit) != 0 ? static_cast<int64_t>(number | neg_mask) : static_cast<int64_t>(number);
     }
 
     /**
@@ -363,13 +337,13 @@ namespace supernova
         static const constexpr auto mask_op = 0x00000000000000FFU;
 
         /** mask for the r1 index on a raw uint64_t */
-        static const constexpr auto mask_r1 = 0x0000000000001F00U;
+        static const constexpr auto mask_r1 = 0x0000000000000F00U;
 
         /** mask for the r2 index on a raw uint64_t */
-        static const constexpr auto mask_r2 = 0x000000000003E000U;
+        static const constexpr auto mask_r2 = 0x000000000000F000U;
 
         /** mask for the rd index on a raw uint64_t */
-        static const constexpr auto mask_rd = 0x00000000007C0000U;
+        static const constexpr auto mask_rd = 0x00000000000F0000U;
 
         /** offset for the opcode on a raw uint64_t */
         static const constexpr auto off_op = 0U;
@@ -378,10 +352,10 @@ namespace supernova
         static const constexpr auto off_r1 = off_op + 8U;
 
         /** offset for the r2 index on a raw uint64_t */
-        static const constexpr auto off_r2 = off_r1 + 5U;
+        static const constexpr auto off_r2 = off_r1 + 4U;
 
         /** offset for the rd index on a raw uint64_t */
-        static const constexpr auto off_rd = off_r2 + 5U;
+        static const constexpr auto off_rd = off_r2 + 4U;
 
         /**
          * @brief Construct an R instruction from different values
@@ -454,16 +428,16 @@ namespace supernova
 
     public:
         /** mask for the opcode on a raw `uint64_t` */
-        static const constexpr auto mask_op = 0x00000000000000FFU;
+        static const constexpr auto mask_op  = 0x00000000000000FFU;
 
         /** mask for the r1 index on a raw `uint64_t` */
-        static const constexpr auto mask_r1 = 0x0000000000001F00U;
+        static const constexpr auto mask_r1  = 0x0000000000000F00U;
 
         /** mask for the r2 index on a raw `uint64_t` */
-        static const constexpr auto mask_rd = 0x000000000003E000U;
+        static const constexpr auto mask_rd  = 0x000000000000F000U;
 
         /** mask for the immediate on a raw `uint64_t` */
-        static const constexpr auto mask_imm = 0xFFFFFFFFFFFC0000U;
+        static const constexpr auto mask_imm = 0xFFFFFFFFFFFF0000U;
 
         /** offset for the opcode on a raw `uint64_t` */
         static const constexpr auto off_op = 0U;
@@ -472,10 +446,10 @@ namespace supernova
         static const constexpr auto off_r1 = off_op + 8U;
 
         /** offset for the r2 index on a raw `uint64_t` */
-        static const constexpr auto off_rd = off_r1 + 5U;
+        static const constexpr auto off_rd = off_r1 + 4U;
 
         /** offset for the immediate on a raw `uint64_t` */
-        static const constexpr auto off_imm = off_rd + 5U;
+        static const constexpr auto off_imm = off_rd + 4U;
 
         /**
          * @brief construct an S instruction from different values
@@ -551,13 +525,13 @@ namespace supernova
 
     public:
         /** mask for the opcode on a raw `uint64_t` */
-        static const constexpr auto mask_op = 0x00000000000000FFU;
+        static const constexpr auto mask_op  = 0x00000000000000FFU;
 
         /** mask for the r1 index on a raw `uint64_t` */
-        static const constexpr auto mask_r1 = 0x0000000000001F00U;
+        static const constexpr auto mask_r1  = 0x0000000000000F00U;
 
         /** mask for the immediate index on a raw `uint64_t` */
-        static const constexpr auto mask_imm = 0xFFFFFFFFFFFFE000U;
+        static const constexpr auto mask_imm = 0xFFFFFFFFFFFFF000U;
 
         /** offset for the opcode on a raw `uint64_t` */
         static const constexpr auto off_op = 0U;
@@ -566,7 +540,7 @@ namespace supernova
         static const constexpr auto off_r1 = off_op + 8U;
 
         /** offset for the r2 index on a raw `uint64_t` */
-        static const constexpr auto off_imm = off_r1 + 5U;
+        static const constexpr auto off_imm = off_r1 + 4U;
 
         /**
          * @brief Generate an L instruction from multiple values
@@ -644,9 +618,8 @@ namespace supernova
         confflags_hosted     = 0x2000  /**< supports hosted environment functions */
     };
 
-    inline constexpr auto config_value = confflags_stack | confflags_intdiv | confflags_hosted | confflags_ioint;
-    inline constexpr auto int_count = (2LLU << 51) - 1;
-
+    constexpr uint64_t config_value = confflags_stack | confflags_intdiv | confflags_hosted | confflags_ioint;
+    constexpr uint64_t int_count = 0xFFFFFFFFFFFFEU; // 2^52 - 2
 
     struct thread_model_t
     {
@@ -693,23 +666,20 @@ namespace supernova
     class Thread
     {
     public:
-        /** register index for the function switch inside processor calls */
-        static const constexpr auto pcall_fswitch = 28;
-
-        /** register index for the interrupt space inside processor calls */
-        static const constexpr auto pcall_intspace = 29;
+        /** register index for pcall arguments */
+        static const constexpr auto pcall_reg = 15;
 
         /** register index for the first return value on processor calls */
-        static const constexpr auto pcall_1stret = 30;
+        static const constexpr auto pcall_1stret = 14;
 
         /** register index for the second return value on processor calls*/
-        static const constexpr auto pcall_2ndret = 31;
+        static const constexpr auto pcall_2ndret = 13;
 
         /** register to push invalid opcode into before calling the required invalid opcode */
-        static const constexpr auto pcall_invopc = 31;
+        static const constexpr auto pcall_invopc = 14;
 
         /** count all registers inside the processor */
-        static const constexpr auto register_count = 32;
+        static const constexpr auto register_count = 16;
 
         /**
          * @brief initalize a thread
@@ -728,7 +698,7 @@ namespace supernova
          * @param index index of register to get value from
          * @return reference of the register on given index
          */
-        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto& { return this->m_registers.at(index); }
+        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto& { return this->m_registers[index]; }
 
         /**
          * @brief get all registers in an array
@@ -966,7 +936,7 @@ namespace supernova
             read_status status{ReadOk};
             uint64_t entry_point{-1LLU};
             read_return() = default;
-            read_return(read_status stat, uint64_t mem_size=0, uint64_t entry=0, std::unique_ptr<uint8_t[]> memory = nullptr) 
+            explicit read_return(read_status stat, uint64_t mem_size=0, uint64_t entry=0, std::unique_ptr<uint8_t[]> memory = nullptr) 
             : memory_pointer(std::move(memory)), memory_size{mem_size}, status{stat}, entry_point{entry} {}
         };
 

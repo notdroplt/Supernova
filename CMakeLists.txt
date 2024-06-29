@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.5)
 project(supernova VERSION 0.1.0 DESCRIPTION "Zenith runtime virtual machine")
 
 set(CMAKE_CXX_STANDARD 17)
@@ -18,7 +18,7 @@ target_compile_definitions(supernova-iface INTERFACE SUPERNOVA_VERSION_MINOR=${S
 target_compile_definitions(supernova-iface INTERFACE SUPERNOVA_VERSION_PATCH=${SNVERSION_PATCH}LLU)
 target_compile_definitions(supernova-iface INTERFACE SUPERNOVA_VERSION="${SNVERSION}")
 
-target_compile_features(supernova-iface INTERFACE cxx_std_23)
+target_compile_features(supernova-iface INTERFACE cxx_std_17)
 target_compile_features(supernova-iface INTERFACE cxx_constexpr)
 
 include(CTest)

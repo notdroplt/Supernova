@@ -3,6 +3,11 @@
 A reduced instruction set designed to be the first compiler target,
 opcodes and behaviors might change in future releases.
 
+## Compiling 
+
+To compiling the project, you will need
+ - [CMAKE](https://cmake.org/) (version 3.5 or higher) to build
+
 ## Instruction Layouts
 
 This table defines how are the instruction types laid out, bit by bit,
@@ -15,15 +20,15 @@ referring to the second argument (and not register r02). Register
 `rd` is the destination register, nothing stops `rd` to be `r1` or
 `r2`
 
-instruction type | bits 63-23 | bits 22-18 | bits 17-13 | bits 12-8 | bits 7-0
+instruction type | bits 63-20 | bits 19-16 | bits 15-12 | bits 11-8 | bits 7-0
 :-:|:-:|:-:|:-:|:-:|:-:
 R type | unused | rd | r2 | r1 | op
 
-instruction type | bits 63-18 | bits 17-13 | bits 12-8 | bits 7-0
+instruction type | bits 63-16 | bits 15-12 | bits 11-8 | bits 7-0
 :-:|:-:|:-:|:-:|:-:
 S type | immediate | rd | r1 | op
 
-instruction type | bits 63-13 | bits 12-8 | bits 7-0
+instruction type | bits 63-12 | bits 11-8 | bits 7-0
 :-:|:-:|:-:|:-:
 L type | immediate | r1 | op
 
@@ -36,13 +41,10 @@ register index | used as | requirements
 r00 | zero register     | none, writing to is a no-op
 r01 | stack pointer     | needs to be valid for `pcall`
 r02 | frame pointer     | needs to be vaild for `pcall`
-r03 - r25 | general use | none
-r26 | code area pointer | saved for PIC
-r27 | data area pointer | saved for PIC
-r28 | `pcall` parameter | interrupt space   
-r29 | `pcall` parameter | function switch   
-r30 | `pcall` return    | save before pcall 
-r31 | `pcall` return    | save before pcall 
+r03 - r12 | general use | none
+r13 | `pcall` return    | save before pcall 
+r14 | `pcall` return    | save before pcall 
+r15 | `pcall` parameter | function switch  
 
 
 ## Instruction Set Resume
@@ -372,22 +374,22 @@ the processor is able to choose to go for a reset or a shutdown
 
 Only `pcall -1` is hardware/vm defined, all the other $2^{51}-1$ possible interrupts are programmable with a call to `pcall -1`:
 
-The interface defines `r29:r28` as the interrupt space and functionality switches, while other registers are used accordingly as each function needs.
-Normally, `r28 = 0` will be a `r29` implementation check, behaving as a `xorr r31, r31` in case `r29`'s feature is not implmemented.
+The interface defined uses r15 split in two 32bit areas `intspace:fswitch` as interrupt space and functionality switches, while other registers are used accordingly as each function needs.
+Normally, `fswitch = 0` will be a `instspace` implementation check, behaving as a `orr r14 r0 r0` in case `intspace`'s feature is not implmemented.
 
 **`pcall -1` functions**
 
-- `r29 = 0`: [interrupt vector functions](#interrupt-vector-interrupt-space)
-- - `r28 = 0`: [interrupt vector check](#interrupt-vector-check)
-- - `r28 = 1`: [interrupt vector enable](#interrupt-vector-enable)
-- `r29 = 1`: [paging functions](#paging-interrupt-space)
-- - `r28 = 0`: [paging check](#paging-check)
-- - `r28 = 1`: [paging enable](#paging-enable)
-- `r29 = 2`: [model information](#model-information-interrupt-space)
-- - `r28 = 0`: [model check](#model-check)
-- - `r28 = 1`: []
-- `r29 = 3`: [hyper functions](#hyper-function-interrupt-space)
-- - `r28
+- `intspace = 0`: [interrupt vector functions](#interrupt-vector-interrupt-space)
+- - `fswitch = 0`: [interrupt vector check](#interrupt-vector-check)
+- - `fswitch = 1`: [interrupt vector enable](#interrupt-vector-enable)
+- `intspace = 1`: [paging functions](#paging-interrupt-space)
+- - `fswitch = 0`: [paging check](#paging-check)
+- - `fswitch = 1`: [paging enable](#paging-enable)
+- `intspace = 2`: [model information](#model-information-interrupt-space)
+- - `fswitch = 0`: [model check](#model-check)
+- - `fswitch = 1`: []
+- `intspace = 3`: [hyper functions](#hyper-function-interrupt-space)
+- - `fswitch = 0` [is hosted](#hyper-hosted)
 
 ---
 
@@ -399,12 +401,12 @@ input registers: none
 
 output registers:
 
-- `r31`: `0` if no interrupts are possible, `pcall 0:0` is just a shadow to `add r31, r0, r0`,  
-         `1` if interrupts are possible, but only in the address specified by `r29`,  
+- `r14`: `0` if no interrupts are possible, `pcall 0:0` is just a shadow to `orr r14, r0, r0`,  
+         `1` if interrupts are possible, but only in the address specified by `r12`,  
          `2` if interrupts are possible anywhere defined by the program,  
 
-- `r30`: in case `r31 == 1`, sets bit flags to which hardware interrupts are supported
-         in case `r31 == 2`, defines the amount of interrupts the processor is able to handle
+- `r13`: in case `r14 == 1`, sets bit flags to which hardware interrupts are supported
+         in case `r14 == 2`, defines the amount of interrupts the processor is able to handle
 
 trashed registers: none
 
@@ -412,7 +414,7 @@ trashed registers: none
 
 input registers:
 
-- `r31` (possibly): in case where `pcall` with `0:0` returned `2`, set the interrupt vector register to the specified pointer, else value is just ignored
+- `r14` (possibly): if `pcall 0:0` returned `2`, set the interrupt vector register to the specified pointer, ignored if not
 
 output registers: none
 
@@ -428,20 +430,10 @@ input registers: none
 
 output registers:
 
-- `r31`: set to the processor's amount of page level reach, can assume either `0` or `≥ 2`
-- `r30`: in case `r31` is not zero, returns the processor's page size
+- `r14`: set to the processor's amount of page level reach, 0 is unimplemented, 1 is linear paging or `≥ 2` for multiple levels
+- `r13`: in case `r31` is not zero, returns the processor's page size
 
 trashed registers: none
-
-#### paging enable
-
-input registers:
-
-- `r30`:
-
-#### `r28 = 1`, `r30 = page root directory`
-
-Enable paging, with `r30` set to the memory location of the first page root directory location
 
 ---
 
@@ -453,7 +445,7 @@ input registers: none
 
 output registers:
 
-- `r31`: set if the processor is able to give more information about itself
+- `r15`: set if the processor is able to give more information about itself
 
 trashed registers: none
 

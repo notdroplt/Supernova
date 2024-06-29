@@ -16,6 +16,7 @@ void print_help() {
         "  -p --properties     | get current virtual machine properties\n";
 }
 
+[[gnu::cold]]
 void print_properties() {
     std::cout << 
         "Properties:\n"
