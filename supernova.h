@@ -12,8 +12,8 @@
 #pragma once
 #include <array>
 #include <cstdint>
-#include <type_traits>
 #include <memory>
+#include <type_traits>
 
 #ifndef SUPERNOVA_VERSION_MAJOR
 /** should be set if compiling with cmake, this is just a failback for lsp servers */
@@ -439,6 +439,8 @@ namespace supernova
         /** mask for the immediate on a raw `uint64_t` */
         static const constexpr auto mask_imm = 0xFFFFFFFFFFFF0000U;
 
+        static const constexpr auto big_uimm = 0x00007FFFFFFFFFFFU;
+
         /** offset for the opcode on a raw `uint64_t` */
         static const constexpr auto off_op = 0U;
 
@@ -532,6 +534,8 @@ namespace supernova
 
         /** mask for the immediate index on a raw `uint64_t` */
         static const constexpr auto mask_imm = 0xFFFFFFFFFFFFF000U;
+
+        static const constexpr auto big_uimm = 0x0007FFFFFFFFFFFFU;
 
         /** offset for the opcode on a raw `uint64_t` */
         static const constexpr auto off_op = 0U;
@@ -681,6 +685,12 @@ namespace supernova
         /** count all registers inside the processor */
         static const constexpr auto register_count = 16;
 
+        static const constexpr auto sreg_count = 4;
+        static const constexpr auto instrptr_idx = 0;
+        static const constexpr auto intvec_idx = 1;
+        static const constexpr auto pagptr_idx = 2;
+
+
         /**
          * @brief initalize a thread
          * 
@@ -689,7 +699,7 @@ namespace supernova
          * @param model thread information
         */
         Thread(std::unique_ptr<uint8_t[]> memory, uint64_t memory_size, struct thread_model_t *model, uint64_t entry_point = 0)
-            : m_memory{std::move(memory)}, m_program_counter{entry_point}, m_memory_size{memory_size}, m_model{model}
+            : m_special{{entry_point, 0, 0, 0}}, m_memory{std::move(memory)}, m_memory_size{memory_size}, m_model{model}
         {
         }
 
@@ -698,7 +708,10 @@ namespace supernova
          * @param index index of register to get value from
          * @return reference of the register on given index
          */
-        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto& { return this->m_registers[index]; }
+        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto& { 
+            
+            return this->m_registers[index];
+        }
 
         /**
          * @brief get all registers in an array
@@ -710,13 +723,13 @@ namespace supernova
          * @brief get the program counter register
          * @return program counter reference
          */
-        [[nodiscard]] constexpr auto progc() noexcept -> auto& { return this->m_program_counter; }
+        [[nodiscard]] constexpr auto progc() noexcept -> auto& { return this->m_special[instrptr_idx]; }
 
         /**
          * @brief get the interrupt vector register
          * @return interrupt vector reference
          */
-        [[nodiscard]] constexpr auto intvec() noexcept -> auto& { return this->m_int_vector; }
+        [[nodiscard]] constexpr auto intvec() noexcept -> auto& { return this->m_special[intvec_idx]; }
 
         /**
          * @brief get the size of the memory in bytes
@@ -790,9 +803,17 @@ namespace supernova
 
     private:
         std::array<uint64_t, register_count> m_registers{{0}}; /**< thread registers */
+        /**
+         * @brief status registers, not directly affected by instructions but there 
+         * are ways to use them, 
+        */
+        std::array<uint64_t, sreg_count> m_special{{
+            0, /* instruction pointer, at least 61 bits */
+            0, /* interrupt vector, at least is 60 bits */
+            0, /* page pointer, at least 60 bits */
+            0, /* pcall, 52 bits minimum*/
+        }};
         std::unique_ptr<uint8_t[]> m_memory{};                 /**< thread memory pointer */
-        uint64_t m_program_counter{0};                         /**< thread instructon pointer */
-        uint64_t m_int_vector{0};                              /**< interrupt vector pointer*/
         uint64_t m_memory_size;                                /**< thread memory size */
         struct thread_model_t *m_model;                        /**< thread model pointer */
         ProcessorCall m_pcall{NormalExecution};                /**< which execution state the cpu is in */

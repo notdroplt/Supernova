@@ -117,7 +117,7 @@ namespace
         const auto linstr = LInstr(instruction);
 
         /// the amount of bits not accounted by an linstruction immediate
-        constexpr auto low_bit_count = 13U;
+        constexpr auto low_bit_count = supernova::LInstruction::off_imm;
 
         switch (rinstr.opcode())
         {
