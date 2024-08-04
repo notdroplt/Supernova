@@ -33,7 +33,7 @@ endif()
 
 add_library(supernova supernova.cxx read_file.cxx)
 
-add_executable(snvm runner.cxx)
+add_executable(snvm runner.cxx args.cxx)
 
 target_link_libraries(snvm PUBLIC supernova)
 

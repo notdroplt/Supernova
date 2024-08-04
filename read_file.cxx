@@ -1,12 +1,12 @@
-#include "supernova.h"
+#include "headers.h"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
-supernova::headers::read_return supernova::headers::read_file(char const *filename)
+supernova::headers::read_return supernova::headers::read_file(supernova::arguments::arguments const&args)
 {
-    auto file = std::ifstream(filename, std::ios::binary | std::ios::in | std::ios::ate);
+    auto file = std::ifstream(args.filename, std::ios::binary | std::ios::in | std::ios::ate);
     main_header main{};
 
     if (!file)
@@ -41,9 +41,7 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
     if (main.entry_point > main.memory_size)
     {
         return read_return{read_status::InvalidEntryPoint};
-    }
-
-   
+    } 
 
     if (size < (sizeof(main_header) + sizeof(memory_map) * main.memory_regions))
     {
@@ -77,7 +75,8 @@ supernova::headers::read_return supernova::headers::read_file(char const *filena
         }
     }
 
-    auto memory = std::unique_ptr<uint8_t[]>(new uint8_t[main.memory_size]);
+    auto const mem_size = args.memort_limit == 0 ? main.memory_size : std::min(main.memory_size, args.memort_limit);
+    auto memory = std::unique_ptr<uint8_t[]>(new uint8_t[mem_size]);
 
     for (size_t i = 0; i < main.memory_regions; ++i)
     {

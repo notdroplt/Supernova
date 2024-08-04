@@ -3,10 +3,73 @@
 A reduced instruction set designed to be the first compiler target,
 opcodes and behaviors might change in future releases.
 
+## Summary
+
+- [Compiling](#compiling)
+- [Command line arguments](#command-line-arguments)
+
 ## Compiling 
 
 To compiling the project, you will need
  - [CMAKE](https://cmake.org/) (version 3.5 or higher) to build
+ - a C++17 compliant compiler
+
+Then, in the project folder
+
+```bash
+mkdir -p build && cmake -S . -B build
+```
+
+To generate build files and then
+
+```bash
+cmake --build build
+```
+
+which *should* compile everything, including tests, but they are small so it is fine
+
+## Command Line Options
+
+- diagnostic options
+  - `-h` or `--help`
+    - print help to the screen
+  - `-v` or `--version`
+    - output the version of the compiled project into the screen
+  - `-p` or `--properties`
+    - print the properties to the screen about the current vm in a human readable format
+- configuration options
+  - `--thread-count=[count]` (no effect)
+    - set current amount of concurrent threads to spawn for a process, defaults to one
+  - `--start-thread=[id]` (no effect)
+    - set on which thread the code should start
+  - `--add-search-path [path]` (no effect)
+    - add paths to search for modules
+  - `--add-module [name]`
+    - add modules to the vm
+- sandbox flags
+  - `--memory-limit=[size][prefix]`
+    - define the biggest size the vm memory pointer can handle, prefix is needed
+      - `b` or `B` for bytes, `size` * 1
+      - `k` for kilobytes, `size` * 1000
+      - `K` for kibibytes, `size` * 1024
+      - `m` for megabytes, `size` * 1000000
+      - `M` for mebibytes, `size` * 1048576
+      - `g` for gigabytes, `size` * 1000000000
+      - `G` for gibibytes, `size` * 1073741824
+      - `t` for terabytes, `size` * 1000000000000
+      - `T` for tebibytes, `size` * 1099511627776
+    - not setting this value before can cause errors if `main_header.memory_size` is corrupted or set to be a value greater than needed
+  - `--load-modules=(true|false)`
+    - if `false`, all modules are not loaded and the entire running code is sandboxed and very little features are available (only modules with i/o interfaces)
+    - default is true
+  - `--enable-[instr]=(true|false)`
+    - enable certain instruction groups, disabling can be used to emulate even more reduced instruction sets, generally default to true
+    - `--enable-div`: enable integer division instructions `udivr`, `udivi`, `sdivr`, `sdivi`
+    - `--enable-int`: enable interrupt instructions
+    - `--enable-float`: enable all floating point instructions 
+    - `--enable-ioint`: enable interrupts trigged by i/o ports
+    - `--enable-stack`: enable stack instructions (will default to false)
+
 
 ## Instruction Layouts
 
@@ -38,10 +101,8 @@ L type | immediate | r1 | op
 
 register index | used as | requirements
 :-: | :-:               | :-:
-r00 | zero register     | none, writing to is a no-op
-r01 | stack pointer     | needs to be valid for `pcall`
-r02 | frame pointer     | needs to be vaild for `pcall`
-r03 - r12 | general use | none
+r00 | zero register     | none, read-"only" because writing is discarded
+r01 - r12 | general use | none
 r13 | `pcall` return    | save before pcall 
 r14 | `pcall` return    | save before pcall 
 r15 | `pcall` parameter | function switch  
@@ -369,6 +430,19 @@ A triple fault is one of the fatal faults inside the processor. There is no way
 to handle a triple fault as it probably suggests a fault in the error handling
 system, and not making software handle prevents crash loops. If it is ever triggered
 the processor is able to choose to go for a reset or a shutdown 
+
+#### `pcall 4`: Invalid Instruction
+
+The invalid instruction is thrown every time the instruction decoder couldn't find a
+reasonable instruction to execute, and sets r15 to the value of the instruction it
+tried to parse
+
+#### `pcall 5`: Page Fault
+
+This interrupt is triggered when a there is any "wrong" access to memory, being either
+mapped into an unmapped area, or not having enough permissions into a memory region,
+sets r15 to the unusable address
+
 
 ## `pcall -1`
 

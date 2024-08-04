@@ -101,7 +101,7 @@ namespace
         thread.progc() = fetch<uint64_t>(thread, thread.intvec() + pcall * sizeof(uint64_t));
     }
 
-    void exec_instruction(Thread &thread)
+    constexpr void exec_instruction(Thread &thread) noexcept
     {
         uint64_t instruction{0UL};
         if (thread.signal() != DestroyFor::DoNotDestroy)
@@ -381,7 +381,7 @@ namespace supernova
         thread.registers(0) = 0;
         if (step) {
             exec_instruction(thread);
-            return {true, 0};
+            return {true, thread.registers(1)};
         }
         
         thread.registers(Thread::pcall_1stret) = argc;
@@ -398,7 +398,7 @@ namespace supernova
 
         if (thread.signal() == DestroyFor::ProgramEnd)
         {
-            return thread_return{true, ret_val};
+            return {true, ret_val};
         }
 
         return {false, thread.signal()};

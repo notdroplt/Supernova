@@ -17,20 +17,20 @@
 
 #ifndef SUPERNOVA_VERSION_MAJOR
 /** should be set if compiling with cmake, this is just a failback for lsp servers */
-#   define SUPERNOVA_VERSION_MAJOR 0LLU
+#define SUPERNOVA_VERSION_MAJOR 0LLU
 #endif
 #ifndef SUPERNOVA_VERSION_MINOR
 /** should be set if compiling with cmake, this is just a failback for lsp servers */
-#   define SUPERNOVA_VERSION_MINOR 0LLU
+#define SUPERNOVA_VERSION_MINOR 0LLU
 #endif
 #ifndef SUPERNOVA_VERSION_PATCH
 /** should be set if compiling with cmake, this is just a failback for lsp servers */
-#   define SUPERNOVA_VERSION_PATCH 0LLU
+#define SUPERNOVA_VERSION_PATCH 0LLU
 #endif
 
 #ifndef SUPERNOVA_HEADER_DEFINED
 #define SUPERNOVA_HEADER_DEFINED 1
-#endif 
+#endif
 
 namespace supernova
 {
@@ -46,11 +46,7 @@ namespace supernova
          */
         constexpr auto left_shift(uint64_t left, uint64_t right) -> uint64_t
         {
-            if (sizeof(left) <= static_cast<decltype(sizeof(left))>(right))
-            {
-                return 0;
-            }
-            return left << right;
+            return sizeof(left) * 8 > right ? left << right : 0;
         };
 
         /**
@@ -63,24 +59,22 @@ namespace supernova
          */
         constexpr auto right_shift(uint64_t left, uint64_t right) -> uint64_t
         {
-            if (sizeof(left) <= static_cast<decltype(sizeof(left))>(right))
-            {
-                return 0;
-            }
-            return left >> right;
+            return sizeof(left) * 8 > right ? left >> right : 0;
         };
 
         constexpr auto popcount(uint64_t left, uint64_t right [[maybe_unused]]) -> uint64_t
         {
-#if __has_builtin(__builtin_popcountl)
-            return __builtin_popcountl(left);
-#else
-            auto count = 0U;
-            auto val = left;
-            for (; val != 0; val &= val - 1)
-                count++;
-            return count;
-#endif
+            if constexpr (__has_builtin(__builtin_popcountl))
+            {
+                return __builtin_popcountl(left);
+            }
+            else
+            {
+                auto count = 0U;
+                for (auto val = left; val != 0; val &= val - 1)
+                    count++;
+                return count;
+            }
         };
     }; // namespace helpers
 
@@ -90,7 +84,7 @@ namespace supernova
      * instruction types:
      *
      * R type (registers only) => register-register-register
-     * 
+     *
      * S type ("small" immediate) => register-register-immediate
      *
      * L type ("long" immediate) => register-immediate
@@ -143,7 +137,7 @@ namespace supernova
         /* reserved : S type */
         /* reserved : R type */
         /* reserved : S type */
-        /** @} */           /* InPG0 */
+        /** @} */ /* InPG0 */
 
         /**
          * @defgroup InPG1 Instruction prefixes, group 1
@@ -167,11 +161,15 @@ namespace supernova
         udivi_instrc = 0x19, /**< `udiv r#, r#, imm` : S type */
         sdivr_instrc = 0x1A, /**< `sdiv r#, r#, r#`  : R type */
         sdivi_instrc = 0x1B, /**< `sdiv r#, r#, imm` : S type */
-        call_instrc = 0x1C,  /**< `call r#, r#, r#`  : R type */
-        push_instrc = 0x1D,  /**< `push r#, r#, imm` : S type */
-        retn_instrc = 0x1E,  /**< `retn r#, r#, r#`  : R type */
-        pull_instrc = 0x1F,  /**< `pull r#, r#, imm` : S type */
-        /** @} */            /* InPG1 */
+        call_instrc = 0x1C,
+        /**< `call r#, r#, r#`  : R type */ /* marked to be reserved in next release */
+        push_instrc = 0x1D,
+        /**< `push r#, r#, imm` : S type */ /* marked to be reserved in next release */
+        retn_instrc = 0x1E,
+        /**< `retn r#, r#, r#`  : R type */ /* marked to be reserved in next release */
+        pull_instrc = 0x1F,
+        /**< `pull r#, r#, imm` : S type */ /* marked to be reserved in next release */
+        /** @} */                           /* InPG1 */
 
         /**
          * @defgroup InPG2 Instruction prefixes, group 2
@@ -224,11 +222,11 @@ namespace supernova
         auipc_instrc = 0x39,   /**< `auipc r#, imm`      : L type */
         pcall_instrc = 0x3A,   /**< `pcall r#, imm`      : L type */
         /* reserved : S type */
-        bout_instrc = 0x3C,    /**< `outb r#, r#, 0`    : R type */
-        out_instrc = 0x3D,     /**< `outw r#, r#, 0`    : S type */
-        bin_instrc = 0x3E,     /**< `inb r#, r#, 0`     : R type */
-        in_instrc = 0x3F,      /**< `inw r#, r#, 0`     : S type */
-        /** @} */              /** InPG3*/
+        bout_instrc = 0x3C, /**< `outb r#, r#, 0`    : R type */
+        out_instrc = 0x3D,  /**< `outw r#, r#, 0`    : S type */
+        bin_instrc = 0x3E,  /**< `inb r#, r#, 0`     : R type */
+        in_instrc = 0x3F,   /**< `inw r#, r#, 0`     : S type */
+        /** @} */           /** InPG3*/
 
         /** group 4, floating point operation instructions */
 
@@ -428,13 +426,13 @@ namespace supernova
 
     public:
         /** mask for the opcode on a raw `uint64_t` */
-        static const constexpr auto mask_op  = 0x00000000000000FFU;
+        static const constexpr auto mask_op = 0x00000000000000FFU;
 
         /** mask for the r1 index on a raw `uint64_t` */
-        static const constexpr auto mask_r1  = 0x0000000000000F00U;
+        static const constexpr auto mask_r1 = 0x0000000000000F00U;
 
         /** mask for the r2 index on a raw `uint64_t` */
-        static const constexpr auto mask_rd  = 0x000000000000F000U;
+        static const constexpr auto mask_rd = 0x000000000000F000U;
 
         /** mask for the immediate on a raw `uint64_t` */
         static const constexpr auto mask_imm = 0xFFFFFFFFFFFF0000U;
@@ -527,10 +525,10 @@ namespace supernova
 
     public:
         /** mask for the opcode on a raw `uint64_t` */
-        static const constexpr auto mask_op  = 0x00000000000000FFU;
+        static const constexpr auto mask_op = 0x00000000000000FFU;
 
         /** mask for the r1 index on a raw `uint64_t` */
-        static const constexpr auto mask_r1  = 0x0000000000000F00U;
+        static const constexpr auto mask_r1 = 0x0000000000000F00U;
 
         /** mask for the immediate index on a raw `uint64_t` */
         static const constexpr auto mask_imm = 0xFFFFFFFFFFFFF000U;
@@ -594,7 +592,7 @@ namespace supernova
         /**
          * @brief cast this instruction as an `uint64_t`
          */
-        [[nodiscard]] constexpr explicit operator uint64_t() noexcept { return this->m_instruction; }
+        [[nodiscard]] constexpr explicit operator uint64_t() const noexcept { return this->m_instruction; }
 
     private:
         /** raw instruction value */
@@ -606,20 +604,20 @@ namespace supernova
      */
     enum config_flags_1 : uint16_t
     {
-        confflags_paging     = 0x0001, /**< support for memory paging */
-        confflags_stack      = 0x0002, /**< support for stack instructions */
-        confflags_intdiv     = 0x0004, /**< support for integer division instructions */
+        confflags_paging = 0x0001,     /**< support for memory paging */
+        confflags_stack = 0x0002,      /**< support for stack instructions */
+        confflags_intdiv = 0x0004,     /**< support for integer division instructions */
         confflags_interrupts = 0x0008, /**< support for software interrupts */
-        confflags_floats     = 0x0010, /**< support for hardware floating point */
-        confflags_fences     = 0x0020, /**< support for memory fences */
-        confflags_condset    = 0x0040, /**< support for conditional get/set */
-        confflags_condmove   = 0x0080, /**< support for conditional move */
-        confflags_multi64    = 0x0100, /**< multiple execution instructions, 64 bit */
-        confflags_multi128   = 0x0200, /**< multiple execution instructions, 128 bit */
-        confflags_multi256   = 0x0400, /**< multiple execution instructions, 256 bit */
-        confflags_multi512   = 0x0800, /**< multiple execution instructions, 512 bit */
-        confflags_ioint      = 0x1000, /**< @b programmable hardware interrupts */
-        confflags_hosted     = 0x2000  /**< supports hosted environment functions */
+        confflags_floats = 0x0010,     /**< support for hardware floating point */
+        confflags_fences = 0x0020,     /**< support for memory fences */
+        confflags_condset = 0x0040,    /**< support for conditional get/set */
+        confflags_condmove = 0x0080,   /**< support for conditional move */
+        confflags_multi64 = 0x0100,    /**< multiple execution instructions, 64 bit */
+        confflags_multi128 = 0x0200,   /**< multiple execution instructions, 128 bit */
+        confflags_multi256 = 0x0400,   /**< multiple execution instructions, 256 bit */
+        confflags_multi512 = 0x0800,   /**< multiple execution instructions, 512 bit */
+        confflags_ioint = 0x1000,      /**< @b programmable hardware interrupts */
+        confflags_hosted = 0x2000      /**< supports hosted environment functions */
     };
 
     constexpr uint64_t config_value = confflags_stack | confflags_intdiv | confflags_hosted | confflags_ioint;
@@ -652,7 +650,7 @@ namespace supernova
     /**
      * @brief defines a thread that will run vm code
      *
-     * threads have 32 registers, but 31 are actually usable (r0 is reset to zero
+     * threads have 16 registers, but 15 are actually usable (r0 is reset to zero
      * every cycle). besides that, the architecture design only worries about stack
      * registers to save state on interrupts,
      * but the compiler does set some conventions, being:
@@ -661,10 +659,10 @@ namespace supernova
      * r2: stack pointer
      * r3: base pointer
      *
-     * r28: second processor call argument (function switch)
-     * r29: first processor call argument (interrupt space)
+     * r13: second processor call argument (function switch)
+     * r14: first processor call argument (interrupt space)
      *
-     * r31 going upwards: function arguments
+     * r15 going upwards: function arguments
      *
      */
     class Thread
@@ -685,19 +683,36 @@ namespace supernova
         /** count all registers inside the processor */
         static const constexpr auto register_count = 16;
 
-        static const constexpr auto sreg_count = 4;
+        /** count for all special registers */
+        static const constexpr auto sreg_count = 6;
+
+        /** instruction pointer register index */
         static const constexpr auto instrptr_idx = 0;
+
+        /** interrupt vector register index */
         static const constexpr auto intvec_idx = 1;
+
+        /** high level page pointer index */
         static const constexpr auto pagptr_idx = 2;
 
+        /** current called pcall*/
+        static const constexpr auto curpcall_idx = 3;
+
+        /** return address for current pcall */
+        static const constexpr auto pcallret_idx = 4;
+
+        /**
+         * index for special flags register
+        */
+        static const constexpr auto flags_reg = 5;
 
         /**
          * @brief initalize a thread
-         * 
+         *
          * @param memory pointer to memory region
          * @param memory_size size of memory in bytes
          * @param model thread information
-        */
+         */
         Thread(std::unique_ptr<uint8_t[]> memory, uint64_t memory_size, struct thread_model_t *model, uint64_t entry_point = 0)
             : m_special{{entry_point, 0, 0, 0}}, m_memory{std::move(memory)}, m_memory_size{memory_size}, m_model{model}
         {
@@ -708,8 +723,8 @@ namespace supernova
          * @param index index of register to get value from
          * @return reference of the register on given index
          */
-        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto& { 
-            
+        [[nodiscard]] constexpr auto registers(std::size_t index) noexcept -> auto &
+        {
             return this->m_registers[index];
         }
 
@@ -717,19 +732,19 @@ namespace supernova
          * @brief get all registers in an array
          * @return reference to the array of registers
          */
-        [[nodiscard]] constexpr auto allregs() noexcept -> auto& { return this->m_registers; }
+        [[nodiscard]] constexpr auto allregs() noexcept -> auto & { return this->m_registers; }
 
         /**
          * @brief get the program counter register
          * @return program counter reference
          */
-        [[nodiscard]] constexpr auto progc() noexcept -> auto& { return this->m_special[instrptr_idx]; }
+        [[nodiscard]] constexpr auto progc() noexcept -> auto & { return this->m_special[instrptr_idx]; }
 
         /**
          * @brief get the interrupt vector register
          * @return interrupt vector reference
          */
-        [[nodiscard]] constexpr auto intvec() noexcept -> auto& { return this->m_special[intvec_idx]; }
+        [[nodiscard]] constexpr auto intvec() noexcept -> auto & { return this->m_special[intvec_idx]; }
 
         /**
          * @brief get the size of the memory in bytes
@@ -743,7 +758,7 @@ namespace supernova
          *
          * @note `fetch` is not implemented as a member function as it requires processor calls
          */
-        [[nodiscard]] constexpr auto memory() noexcept -> auto& { return this->m_memory; }
+        [[nodiscard]] constexpr auto memory() noexcept -> auto & { return this->m_memory; }
 
         /**
          * @brief get the model information register
@@ -755,13 +770,13 @@ namespace supernova
          * @brief get the current processor call status
          * @return processor call reference
          */
-        [[nodiscard]] constexpr auto pcall() noexcept -> auto& { return this->m_pcall; }
+        [[nodiscard]] constexpr auto pcall() noexcept -> auto & { return this->m_pcall; }
 
         /**
          * @brief get the current processor signal
          * @return processor signal reference
          */
-        [[nodiscard]] constexpr auto signal() noexcept -> auto& { return this->m_signal; }
+        [[nodiscard]] constexpr auto signal() noexcept -> auto & { return this->m_signal; }
 
         /**
          * @brief apply a function from Rinstruction values
@@ -775,8 +790,8 @@ namespace supernova
         template <typename T>
         constexpr void apply_instr(RInstruction instr, T func) noexcept
         {
-            this->registers(instr.rd()) =
-                func(this->registers(instr.r1()), this->registers(instr.r2()));
+            this->m_registers[instr.rd()] =
+                func(this->m_registers[instr.r1()], this->m_registers[instr.r2()]);
         }
 
         /**
@@ -790,34 +805,172 @@ namespace supernova
         template <typename T>
         constexpr void apply_instr(SInstruction instr, T func) noexcept
         {
-            this->registers(instr.rd()) =
-                func(this->registers(instr.r1()), instr.uimm());
+            this->m_registers[instr.rd()] =
+                func(this->m_registers[instr.r1()], instr.uimm());
         }
 
         template <typename T>
-        constexpr void apply_instr(SInstruction instr, T func, bool apply_signed [[maybe_unused]] ) noexcept
+        constexpr void apply_instr(SInstruction instr, T func, bool apply_signed [[maybe_unused]]) noexcept
         {
-            this->registers(instr.rd()) =
-                func(this->registers(instr.r1()), instr.imm());
+            this->m_registers[instr.rd()] =
+                func(this->m_registers[instr.r1()], instr.imm());
         }
 
     private:
         std::array<uint64_t, register_count> m_registers{{0}}; /**< thread registers */
         /**
-         * @brief status registers, not directly affected by instructions but there 
-         * are ways to use them, 
-        */
+         * @brief status registers, not directly affected by instructions but there
+         * are ways to use them,
+         */
         std::array<uint64_t, sreg_count> m_special{{
-            0, /* instruction pointer, at least 61 bits */
-            0, /* interrupt vector, at least is 60 bits */
-            0, /* page pointer, at least 60 bits */
-            0, /* pcall, 52 bits minimum*/
+            0, /* instruction pointer, >= 61 bits */
+            0, /* interrupt vector, >= 60 bits */
+            0, /* page pointer, >= 60 bits */
+            0, /* pcall index, >=52 bits*/
+            0, /* interrupt return pointer, >= 60bits */
+            0, /* processor flags */
         }};
-        std::unique_ptr<uint8_t[]> m_memory{};                 /**< thread memory pointer */
-        uint64_t m_memory_size;                                /**< thread memory size */
-        struct thread_model_t *m_model;                        /**< thread model pointer */
-        ProcessorCall m_pcall{NormalExecution};                /**< which execution state the cpu is in */
-        ThreadDestruction m_signal{DoNotDestroy};              /**< thread destruction signal */
+        std::unique_ptr<uint8_t[]> m_memory{};    /**< thread memory pointer */
+        uint64_t m_memory_size;                   /**< thread memory size */
+        struct thread_model_t *m_model;           /**< thread model pointer */
+        ProcessorCall m_pcall{NormalExecution};   /**< which execution state the cpu is in */
+        ThreadDestruction m_signal{DoNotDestroy}; /**< thread destruction signal */
+    };
+
+    /**
+     * @brief define a buffer which translates recent page accesses
+     */
+    class TranslationBuffer
+    {
+    private:
+        /**
+         * @brief define an entry inside the translation buffer,
+         * all entries will have
+         * bytes 0-63, low 12 unused: virtual page number
+         * bytes 64-127, low 12 unused: physical address page
+         * bytes 128-143: flags for every
+         */
+        struct tbentry
+        {
+            
+            /** region mapped from this */
+            uint64_t m_to{0};
+
+            /**
+             * @brief mask flags inside a tlb entry
+            */
+            enum flag_mask : uint16_t
+            {
+                /** is this entry used inside the line*/
+                mis_used = 0x8000,
+
+                /** is this entry invalid inside the line */
+                mis_dirty = 0x4000,
+
+                /** can this entry be read in userspace */
+                muser_read = 0x2000,
+
+                /** can this entry be written in userpace */
+                muser_write = 0x1000,
+                
+                /** can this entry be executed in userspace */
+                muser_exec = 0x0800,
+
+                /** get an octet for all user permissions */
+                muser_perm = 0x3800,
+
+                /** can this entry be read from in sysspace */
+                msys_read = 0x0400,
+
+                /** can this entry be written to in sysspace */
+                msys_write = 0x0200,
+
+                /** can this entry be executed in sysspace */
+                msys_exec = 0x0100,
+
+                /** octet for system permissions in this memory region */
+                msys_perm = 0x0700,
+
+                /** byte for last access in this region */
+                mentry_time = 0x00FF,
+            };
+
+            enum flag_offset : uint8_t
+            {
+                ois_used = 15,
+                ois_dirty = 14,
+                ouser_read = 13,
+                ouser_write = 12,
+                ouser_exec = 11,
+                ouser_perm = 11,
+                osys_read = 10,
+                osys_write = 9,
+                osys_exec = 8,
+                osys_perm = 8,
+                oentry_time = 0,
+            };
+
+            
+
+            // Generic getter function
+            [[nodiscard]] constexpr auto get_flag(flag_offset offset) const noexcept -> bool { return (m_flags & ((1 << offset) - 1)) != 0; }
+
+            // Generic setter function
+            constexpr auto set_flag(flag_offset offset, bool val = true) noexcept -> void
+            {
+                if (val)
+                {
+                    m_flags |= (1 << offset);
+                    return;
+                }
+                m_flags &= ~(1 << offset);
+            }
+
+            [[nodiscard]] constexpr auto time() const noexcept -> uint8_t { return m_flags & flag_mask::mentry_time; }
+            constexpr auto set_time(uint8_t time) noexcept -> void { m_flags = (m_flags & ~flag_mask::mentry_time) | time; }
+
+            [[nodiscard]] constexpr auto get_usr() const noexcept -> uint8_t { return (m_flags & flag_mask::muser_perm) >> flag_offset::ouser_perm; }
+            constexpr auto set_usr(uint8_t val) noexcept -> void { m_flags = (m_flags & ~flag_mask::muser_perm) | (val << flag_offset::ouser_perm); }
+
+            [[nodiscard]] constexpr auto get_sys() const noexcept -> uint8_t { return (m_flags & flag_mask::msys_perm) >> flag_offset::osys_perm; }
+            constexpr auto set_sys(uint8_t val) noexcept -> void { m_flags = (m_flags & ~flag_mask::msys_perm) | (val << flag_offset::osys_perm); }
+
+            /**
+             * @brief get the virtual page number
+             * 
+             * @return uint64_t page number
+            */
+            [[nodiscard]] constexpr auto get_vpn() const noexcept -> auto { return m_from & ~0x0FFFLLU; }
+            constexpr auto set_vpn(uint64_t vpn) noexcept -> void { m_from = vpn & ~0x0FFFLLU; }
+
+            [[nodiscard]] constexpr auto get_ppn() const noexcept -> auto { return m_to & ~0x0FFFLLU; }
+            constexpr auto set_ppn(uint64_t ppn) noexcept -> void { m_to = ppn & ~0x0FFFLLU; }
+
+
+            private:
+            uint64_t m_from{0};
+            /**
+             * bit 15: is_used flag
+             * bit 14: is_dirty flag
+             * bit 13: user read
+             * bit 12: user write
+             * bit 11: user execute
+             * bit 10: system read
+             * bit 09: system write
+             * bit 08: system execute
+             *
+             * bits 7-0: entry time*/
+            uint16_t m_flags{flag_mask::mis_dirty};
+        };
+
+        std::array<tbentry, 64> m_entries{{}};
+
+        /**
+         * @brief get the last addressable entry in the virtual page
+        */
+        [[nodiscard]] constexpr auto entry_vpn(uint16_t index) { return m_entries.at(index).get_vpn() | 0x0FFF;}
+
+
     };
 
     /**
@@ -856,120 +1009,8 @@ namespace supernova
      */
     using instr_dispatch_t = void (*)(Thread *, union instruction_t);
 
-    /**
-     * \defgroup virtset Virtual Instruction Set Emulation
-     *
-     * \brief all the instruction prefixes used on the emulated vm cpu
-     *
-     * @{
-     */
-
-    namespace headers
-    {
-        /**
-         * @brief first header inside a snova file, responsible for coordinating other headers
-        */
-        struct main_header
-        {
-            /** file magic "Zenithvm" */
-            uint64_t magic;
-
-            /** current header version */
-            uint64_t version;
-
-            /** memory allocated to the virtual machine, skipped if this is a real processor */
-            uint64_t memory_size;
-
-            /** code entry point */
-            uint64_t entry_point;
-
-            /** amount of memory regions inside the current file */
-            uint64_t memory_regions;
-        };
-
-        /**
-         * @brief flags for memory areas inside the file
-        */
-        enum memory_flags : uint8_t
-        {
-            /** this area is readable */
-            mem_read = 0x01,
-
-            /** this area is writable */
-            mem_write = 0x02,
-
-            /** this area is executable */
-            mem_execute = 0x04,
-
-            /** allocate memory for this area, it does not exist on the file */
-            mem_clear = 0x08,
-
-            /** this memory region should go to the executable code memory*/
-            mem_exists = 0x10
-        };
-
-        /**
-         * @brief map for a region of the memory
-        */
-        struct memory_map
-        {
-            uint64_t magic;
-
-            /** start of the memory map inside the file, if `clear` is set it is just ignored */
-            uint64_t start;
-
-            /** size of the memory map both in the file and the virtual memory, in bytes*/
-            uint64_t size;
-
-            /** start of the memory map inside the virtual memory*/
-            uint64_t offset;
-
-            /** flags for the memory region defined*/
-            memory_flags flags;
-        } __attribute__((aligned(sizeof(uint64_t))));
-
-        /** master magic: "Zenithvm" */
-        constexpr auto const master_magic = 0x6D766874696E655ALLU;
-
-        /** memory map magic: "mem_map!" */
-        constexpr auto const memmap_magic = 0x2170616D5f6D656DLLU;
-
-
-
-
-        /** version: major(16bit):minor(16bit):patch(32bit)*/
-        constexpr auto const snvm_version = SUPERNOVA_VERSION_MAJOR << 48U | SUPERNOVA_VERSION_MINOR << 32 | SUPERNOVA_VERSION_PATCH;
-
-        enum read_status : uint8_t{
-            ReadOk,
-            FileNotFound,
-            InvalidHeader,
-            InvalidEntryPoint,
-            VersionMismatch,
-            MagicMismatch,
-            InvalidMemoryRegion,
-            FileError
-        };
-
-        struct read_return {
-            std::unique_ptr<uint8_t[]> memory_pointer{nullptr};
-            uint64_t memory_size{0};
-            read_status status{ReadOk};
-            uint64_t entry_point{-1LLU};
-            read_return() = default;
-            explicit read_return(read_status stat, uint64_t mem_size=0, uint64_t entry=0, std::unique_ptr<uint8_t[]> memory = nullptr) 
-            : memory_pointer(std::move(memory)), memory_size{mem_size}, status{stat}, entry_point{entry} {}
-        };
-
-        auto read_file(char const * filename) -> read_return;
-
-    }; // namespace headers
-
     /***/
     using thread_return = std::pair<bool, int>;
-
-
-
 
     /**
      * @brief run code from a file
