@@ -36,10 +36,12 @@ which *should* compile everything, including tests, but they are small so it is 
   - `-v` or `--version`
     - output the version of the compiled project into the screen
   - `-p` or `--properties`
-    - print the properties to the screen about the current vm in a human readable format
+    - print the properties to the screen about the current vm in a human
+      readable format
 - configuration options
   - `--thread-count=[count]` (no effect)
-    - set current amount of concurrent threads to spawn for a process, defaults to one
+    - set current amount of concurrent threads to spawn for a process, 
+      defaults to one
   - `--start-thread=[id]` (no effect)
     - set on which thread the code should start
   - `--add-search-path [path]` (no effect)
@@ -48,7 +50,8 @@ which *should* compile everything, including tests, but they are small so it is 
     - add modules to the vm
 - sandbox flags
   - `--memory-limit=[size][prefix]`
-    - define the biggest size the vm memory pointer can handle, prefix is needed
+    - define the biggest size the vm memory pointer can handle, prefix
+    needed
       - `b` or `B` for bytes, `size` * 1
       - `k` for kilobytes, `size` * 1000
       - `K` for kibibytes, `size` * 1024
@@ -58,17 +61,22 @@ which *should* compile everything, including tests, but they are small so it is 
       - `G` for gibibytes, `size` * 1073741824
       - `t` for terabytes, `size` * 1000000000000
       - `T` for tebibytes, `size` * 1099511627776
-    - not setting this value before can cause errors if `main_header.memory_size` is corrupted or set to be a value greater than needed
+    - not setting this value before can cause errors if 
+      `main_header.memory_size` is corrupted or set to be a value
+       greater than needed
   - `--load-modules=(true|false)`
-    - if `false`, all modules are not loaded and the entire running code is sandboxed and very little features are available (only modules with i/o interfaces)
+    - if `false`, all modules are not loaded and the entire running code
+    is sandboxed and very little features are available (only modules
+    with i/o interfaces)
     - default is true
   - `--enable-[instr]=(true|false)`
-    - enable certain instruction groups, disabling can be used to emulate even more reduced instruction sets, generally default to true
+    - enable certain instruction groups, disabling can be used to
+      emulate even more reduced instruction sets, usually defaults true
     - `--enable-div`: enable integer division instructions `udivr`, `udivi`, `sdivr`, `sdivi`
     - `--enable-int`: enable interrupt instructions
     - `--enable-float`: enable all floating point instructions 
     - `--enable-ioint`: enable interrupts trigged by i/o ports
-    - `--enable-stack`: enable stack instructions (will default to false)
+    - `--enable-stack`: enable stack instructions (defaults to false)
 
 
 ## Instruction Layouts
@@ -97,15 +105,13 @@ L type | immediate | r1 | op
 
 ## Register Layouts
 
-`r00` is hardwired to zero, `r01` and `r02` are required for the interrupt stack
-
 register index | used as | requirements
 :-: | :-:               | :-:
 r00 | zero register     | none, read-"only" because writing is discarded
 r01 - r12 | general use | none
-r13 | `pcall` return    | save before pcall 
-r14 | `pcall` return    | save before pcall 
-r15 | `pcall` parameter | function switch  
+r13 | `pcall` return    | save before `pcall`, general use otherwise
+r14 | `pcall` return    | save before `pcall`, general use otherwise
+r15 | `pcall` parameter | `pcall` fswitch, general use otherwise
 
 
 ## Instruction Set Resume
@@ -146,13 +152,11 @@ r15 | `pcall` parameter | function switch
       - if `imm >= 64`, clear `rd`
 
   - llsr [opcode `0x08`, R type]
-    - executes a logical left shift on register `r1` for `r2` bits, result on `rd`
+    - executes a logical left shift on register `r1` `r2`, result on `rd`
     - executes: `rd <- r1 << r2`
-    - edge case:
-      - if `r2 >= 64`, clear `rd`
 
   - llsi [opcode `0x09`, S type]
-    - executes a logical left shift on register `r1` for `imm` bits, result on `rd`
+    - executes a logical left shift on register `r1` `imm` bits, result on `rd`
     - executes: `rd <- r1 << imm`
     - edge case:
       - if `imm >= 64`, clear `rd`
@@ -197,58 +201,58 @@ r15 | `pcall` parameter | function switch
       - overflow is discarted
 
   - umulr [opcode `0x14`, R type]
-    - multiplies `r2 (unsigned)` with `r1 (unsigned)` and set `rd` as the result
-    - executes: `rd <- (uint64_t)r1 * (uint64_t)r2`
+    - set `rd` to `r2 (unsigned)` times `r1 (unsigned)`
+    - executes: `rd <- u64(r1) * u64(r2)`
     - edge case:
       - overflow is discarted
 
   - umuli [opcode `0x15`, S type]
-    - multiplies `imm (unsigned)` with `r1 (unsigned)` and set `rd` as the result
-    - executes: `rd <- (uint64_t)r1 * (uint64_t)imm`
+    - set `rd` to `imm (unsigned)` times `r1 (unsigned)` 
+    - executes: `rd <- u64(r1) * u64(imm)`
     - edge case:
       - overflow is discarted
 
   - smulr [opcode `0x16`, R type]
-    - multiplies `r2 (signed)` with `r1 (signed)` and set `rd` as
-    - executes: `rd <- (int64_t)r1 * (int64_t)r2`
+    - set `rd` to `r2 (signed)` times `r1 (signed)` 
+    - executes: `rd <- i64(r1) * i64(r2)`
     - edge case:
       - overflow is discarted
 
   - smuli [opcode `0x17`, S type]
-    - multiplies `imm` with `r1` and set `rd` as the result
-    - executes: `rd <- (int64_t)r1 * (int64_t)imm`
+    - set `rd` to `imm` times `r1` 
+    - executes: `rd <- i64(r1) * i64(imm)`
     - edge case:
       - overflow is discarted
 
   - udivr [opcode `0x18`, R type]
-    - divides `r1 (unsigned)` by `r2 (unsigned)` and set `rd` as the result
-    - executes: `rd <- (uint64_t)r1 / (uint64_t)r2`
+    - set `rd` to `r1 (unsigned)` divided by `r2 (unsigned)`
+    - executes: `rd <- u64(r1) / u64(r2)`
     - edge case:
       - overflow is discarted
       - `r2 = 0` triggers `pcall 1`
 
   - udivi [opcode `0x19`, S type]
-    - divides `r1 (unsigned)` by `imm (unsigned)` and set `rd` as the result
-    - executes: `rd <- (uint64_t)r1 / (uint64_t)imm`
+    - set `rd` to `r1 (unsigned)` divided by `imm (unsigned)`
+    - executes: `rd <- u64(r1) / u64(imm)`
     - edge case:
       - overflow is discarted
       - `imm = 0` triggers `pcall 1`
 
   - sdivr [opcode `0x1A`, R type]
-    - divides `r1 (signed)` by `r2 (signed)` and set `rd` as
-    - executes: `rd <- (int64_t)r1 / (int64_t)r2`
+    - set `rd` to `r1 (signed)` divided by `r2 (signed)`
+    - executes: `rd <- i64(r1) / i64(r2)`
     - edge case:
       - overflow is discarted
       - `r2 = 0` triggers `pcall 1`
 
   - sdivi [opcode `0x1B`, S type]
-    - divides `r1 (signed)` by `imm (signed)` and set `rd` as the result
-    - executes: `rd <- (int64_t)r1 / (int64_t)imm`
+    - set `rd` to `r1 (signed)` divided by `imm (signed)`
+    - executes: `rd <- i64(r1) / i64(imm)`
     - edge case:
       - overflow is discarted
       - `imm = 0` triggers `pcall 1`
 
-  - call [opcode `0x1C`, R type]
+  - call [opcode `0x1C`, R type] (deprecated)
     - change execution context to another place
     - semantic renaming: `call rd, r1, r2` -> `call addr, sp, bp`
     - executes:
@@ -258,14 +262,14 @@ r15 | `pcall` parameter | function switch
       - `bp <- sp`
       - `pc <- addr`
 
-  - push [opcode `0x1D`, S type]
+  - push [opcode `0x1D`, S type] (deprecated)
     - push a value into given stack
     - semantic renaming `push rd, r1, imm` -> `push rv, sp, imv`
     - executes:
       - `u64[sp] <- rv + imv`
       - `sp <- sp + 8`
 
-  - retn [opcode `0x1E`, R type]
+  - retn [opcode `0x1E`, R type] (deprecated)
     - return execution to previous context
     - semantic renaming `retn rd, r1, r2` -> `retn x0, sp, bp`
     - executes:
@@ -274,7 +278,7 @@ r15 | `pcall` parameter | function switch
       - `pc <- u64[sp + 8]`
     - `x0` is ignored
 
-  - pull [opcode `0x1F`, S type]
+  - pull [opcode `0x1F`, S type] (deprecated)
     - pull a value out of a given stack
     - semantic renaming `pull rd, r1, imm` -> `pull rv, sp, #0`
     - executes:
@@ -309,19 +313,19 @@ r15 | `pcall` parameter | function switch
 
   - stb [opcode `0x24`, S type]
     - store byte from register into memory
-    - executes: `u8[rd + imm] <- r1 & 0xff`
+    - executes: `u8[rd + imm] <- u8(r1)`
     - side effects:
       - if `rd + imm` is bigger than memory size, `pcall 4` is triggered
 
   - sth [opcode `0x25`, S type]
     - store half word from register into memory
-    - executes: `u16[rd + imm] <- r1 & 0xffff`
+    - executes: `u16[rd + imm] <- u16(r1)`
     - side effects:
       - if `rd + imm` is bigger than memory size, `pcall 4` is triggered
 
   - stw [opcode `0x26`, S type]
     - store word from register into memory
-    - executes: `u32[rd + imm] <- r1 & 0xffffffff`
+    - executes: `u32[rd + imm] <- u32(r1)`
     - side effects:
       - if `rd + imm` is bigger than memory size, `pcall 4` is triggered
 
@@ -393,9 +397,66 @@ r15 | `pcall` parameter | function switch
 
 - group three:
   - setgur [opcode `0x30`, R type]
-## interrupts
+    - set `rd` to `1` in case `u64(r1) > u64(r2)`, else `0`
+    - executes:
+      - `rd <- u64(r1) > u64(r2) ? 1 : 0`
 
-### default interrupts/exceptions used by the virtual machine
+  - setgui [opcode `0x31`, S type]
+    - set `rd` to `1` in case `u64(r1) > u64(imm)`, else `0`
+    - executes:
+      - `rd <- u64(r1) > u64(imm) ? 1 : 0`
+
+  - setgsr [opcode `0x32`, R type]
+    - set `rd` to `1` in case `i64(r1) > i64(r2)`, else `0`
+    - executes:
+      - `rd <- i64(r1) > i64(r2) ? 1 : 0`
+
+  - setgsi [opcode `0x33`, S type]
+    - set `rd` to `1` in case `i64(r1) > i64(imm)`, else `0`
+    - executes:
+      - `rd <- i64(r1) > u64(imm) ? 1 : 0`
+
+  - setgur [opcode `0x34`, R type]
+    - set `rd` to `1` in case `u64(r1) > u64(r2)`, else `0`
+    - executes:
+      - `rd <- u64(r1) > u64(r2) ? 1 : 0`
+
+  - setgui [opcode `0x35`, S type]
+    - set `rd` to `1` in case `u64(r1) > u64(imm)`, else `0`
+    - executes:
+      - `rd <- u64(r1) > u64(imm) ? 1 : 0`
+
+  - setgsr [opcode `0x36`, R type]
+    - set `rd` to `1` in case `i64(r1) > i64(r2)`, else `0`
+    - executes:
+      - `rd <- i64(r1) > i64(r2) ? 1 : 0`
+
+  - setgsi [opcode `0x37`, S type]
+    - set `rd` to `1` in case `i64(r1) > i64(imm)`, else `0`
+    - executes:
+      - `rd <- i64(r1) > u64(imm) ? 1 : 0`     
+  
+  - lui [opcode `0x38`, L type]
+    - set the highest bits of `rd` to the value of `imm`, 
+    - executes: 
+      - `rd <- u64(imm) << 12`
+
+  - auipc [opcode `0x39`, L type]
+    - set `rd` to the sum of the address that the `aupic` instruction is
+    located (pc) with an `imm` on the higest bits
+    - executes:
+      - `rd <- pc + (u64(imm) << 12)`
+  
+  - pcall [opcode `0x3A`, L type]
+    - call the processor to execute certain subroutines, execution is
+    lef for the implementation
+
+  - pret [opcode `0x3B`, L type]
+    - return from a `pcall` subroutine
+
+## Interrupts
+
+### Default interrupts/exceptions used by the virtual machine
 
 - `pcall -1`: [Processor interface](#pcall--1)
 - `pcall 0`: Divison by zero
@@ -406,43 +467,44 @@ r15 | `pcall` parameter | function switch
 - `pcall 5`: Page fault
 - `pcall 6`: Invalid IO
 
-everything after this is programmable (in theory), but some different
-implementations might use other values
+everything after this is programmable (in theory), but it is reserved 
+for any other virtual machines to implement until `pcall 0x1F`.
 
 #### `pcall 0`: Division by zero
 
 As the name suggests, this program call is triggered every time there is
-a division by zero on the program. A compiler can simply put a divide by zero
-instruction on a program and call it a breakpoint
+a division by zero on the program. A compiler can simply put a divide by
+zero instruction on a program and call it a breakpoint.
 
 #### `pcall 1`: General Fault
 
-General faults occur by any kind of unhandled exception the processor is not
-able to detect or recognize
+General faults occur by any kind of unhandled exception the processor is
+not able to detect or recognize.
 
 #### `pcall 2`: Double Fault
 
-A double fault occurs when any interrupt is called/triggered by a general fault
+A double fault occurs when any interrupt is called/triggered by
+a general fault.
 
 #### `pcall 3`: Triple Fault
 
-A triple fault is one of the fatal faults inside the processor. There is no way 
-to handle a triple fault as it probably suggests a fault in the error handling
-system, and not making software handle prevents crash loops. If it is ever triggered
-the processor is able to choose to go for a reset or a shutdown 
+A triple fault is one of the fatal faults inside the processor. There is
+no way to handle a triple fault as it suggests a fault in the error
+handling system itself. By not making software handle a triple fault, it
+prevents crash loops. Whe, if ever, it is triggered, the implementation
+can choose to go for a reset or a shutdown.
 
 #### `pcall 4`: Invalid Instruction
 
-The invalid instruction is thrown every time the instruction decoder couldn't find a
-reasonable instruction to execute, and sets r15 to the value of the instruction it
-tried to parse
+The invalid instruction is thrown every time the instruction decoder
+couldn't find a reasonable instruction to execute, and sets r15 to the
+value of the instruction it tried to parse;
 
 #### `pcall 5`: Page Fault
 
-This interrupt is triggered when a there is any "wrong" access to memory, being either
-mapped into an unmapped area, or not having enough permissions into a memory region,
-sets r15 to the unusable address
-
+This interrupt is triggered when a there is any "wrong" access to
+memory, being either mapped into an unmapped area, or not having enough
+permissions into a memory region, sets r15 to the unusable address
 
 ## `pcall -1`
 
@@ -461,23 +523,23 @@ Normally, `fswitch = 0` will be a `instspace` implementation check, behaving as 
 - - `fswitch = 1`: [paging enable](#paging-enable)
 - `intspace = 2`: [model information](#model-information-interrupt-space)
 - - `fswitch = 0`: [model check](#model-check)
-- - `fswitch = 1`: []
 - `intspace = 3`: [hyper functions](#hyper-function-interrupt-space)
 - - `fswitch = 0` [is hosted](#hyper-hosted)
+- - `fswitch = 1` [return to host](#hyper-return-host)
 
 ---
 
-### interrupt vector interrupt space
+### Interrupt vector functions
 
-#### interrupt vector check
+#### Interrupt vector check
 
-input registers: none
+- Input: none
 
-output registers:
-
-- `r14`: `0` if no interrupts are possible, `pcall 0:0` is just a shadow to `orr r14, r0, r0`,  
-         `1` if interrupts are possible, but only in the address specified by `r12`,  
-         `2` if interrupts are possible anywhere defined by the program,  
+- Output:
+  - `r14`: `0` if no interrupts are possible, making `pcall 0:0` shadow
+    `orr r14, r0, r0`. `1` means interrupts are possible, but only in
+    the address specified by `r12`, `2` means they are possible anywhere
+    defined by the program, 
 
 - `r13`: in case `r14 == 1`, sets bit flags to which hardware interrupts are supported
          in case `r14 == 2`, defines the amount of interrupts the processor is able to handle
@@ -496,9 +558,9 @@ trashed registers: none
 
 ---
 
-### paging interrupt space
+### Paging functions
 
-#### paging check
+#### Paging check
 
 input registers: none
 
@@ -511,9 +573,9 @@ trashed registers: none
 
 ---
 
-### model information interrupt space
+### Model Information functions
 
-#### information check
+#### Information check
 
 input registers: none
 
@@ -523,3 +585,24 @@ output registers:
 
 trashed registers: none
 
+---
+
+### Hypervosor functions
+
+#### Hypervisor check
+
+- Input: none
+
+- Output: 
+  - `r14`: the boolean value indicating if current processor is emulated
+
+#### Hypervisor return
+
+- Input: 
+  `r1`: exit code
+
+- Side Effects:
+  - if this code was being ran from a virtual machine, it sends a 
+  program end signal, to stop execution
+  - if this code is in user mode, it sends control back to the kernel
+  - ***this function has not yet defined behavior for kernel mode***

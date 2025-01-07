@@ -1,6 +1,11 @@
 #include "args.h"
+#include "supernova.h"
+#include <algorithm>
+#include <array>
 #include <iostream>
 #include <bitset>
+#include <iterator>
+#include <string_view>
 #ifndef SUPERNOVA_VERSION
 #define SUPERNOVA_VERSION ""
 #endif
@@ -24,7 +29,7 @@ void print_help()
                  " --memory-limit=[size][prefix]    | allocate memory to at most `size` bytes, prefixes need to be one of: b, k[b], m[b], g[b]\n"
                  " --load-modules=(true|false)      | all hypervisor requests to load a library in the host will forcefully fail\n"
                  " --enable-[instr]=(true|false)    | tune certain instructions, instr can be any of: div, int, float, ioint, stack\n"
-                 " note: --enable-stack=false is going to be the default, not now\n";
+                 " note: --enable-stack is the only option which already defaults to false \n";
 }
 
 [[gnu::cold]]
@@ -35,35 +40,31 @@ void print_properties()
                  "thread model:\n"
                  "\tflags: 0b"
               << std::bitset<16>(supernova::config_value) << "\n\tpossible interrupt count: "
-              << supernova::int_count << "\n"
-                                         "======================================\n"
-                                         "instruction group implementations:\n"
-                                         "\tgroup 0: fully implemented\n"
-                                         "\tgroup 1: fully implemented\n"
-                                         "\tgroup 2: fully implemented\n"
-                                         "\tgroup 3: no i/o\n"
-                                         "\tgroup 4: not implemented\n"
-                                         "\tgroup 5: not implemented\n"
-                                         "\tgroup 6: not implemented\n"
-                                         "==============================\n"
-                                         "pcall -1:\n"
-                                         "\t0:0 -> r31 = 2, r30 = 2^51 - 1\n"
-                                         "\t0:1 implemented\n"
-                                         "\t1:0 -> r31 = 0 paging not yet implemented\n"
-                                         "\t2:0 -> r31 = 0 (will change shortly)\n";
+              << supernova::int_count 
+              << "\n======================================\n"
+                    "instruction group implementations:\n"
+                    "\tgroup 0: fully implemented\n"
+                    "\tgroup 1: fully implemented\n"
+                    "\tgroup 2: fully implemented\n"
+                    "\tgroup 3: no i/o\n"
+                    "\tgroup 4: not implemented\n"
+                    "\tgroup 5: not implemented\n"
+                    "\tgroup 6: not implemented\n"
+                    "==============================\n"
+                    "pcall -1:\n"
+                    "\t0:0 -> r31 = 2, r30 = 2^51 - 1\n"
+                    "\t0:1 implemented\n"
+                    "\t1:0 -> r31 = 0 paging not yet implemented\n"
+                    "\t2:0 -> r31 = 0 (will change shortly)\n";
 }
 
 [[nodiscard]] constexpr auto str_starts_with(std::string_view const &big, std::string_view const &small) noexcept
 {
-    if (small.size() > big.size()) { return false; }
+    if (small.size() > big.size()) return false;
 
     for (size_t i = 0; i < small.size(); ++i)
-    {
         if (big[i] != small[i])
-        {
             return false;
-        }
-    }
 
     return true;
 }
@@ -109,7 +110,7 @@ void print_properties()
                 return false;
             }
         }
-        result = result * 10 + (c - '0');
+        result = result * 10 + c - '0';
     }
     return true;
 }
@@ -184,6 +185,27 @@ namespace supernova::arguments
             {
                 args.load_libs = cur_arg.substr(13, cur_arg.size()) == "true";
                 continue;
+            }
+
+            if (str_starts_with(cur_arg, "--enable"))
+            {
+                auto equals = cur_arg.find_first_of('=');
+                auto element = cur_arg.substr(9, equals - 9);
+                auto value = cur_arg.substr(equals+1);
+                auto names = std::array<std::string_view, 5>({"div", "int", "float", "ioint", "stack"});
+                auto flags = std::array<supernova::config_flags_1, 5>({confflags_idiv, confflags_int, confflags_flt, confflags_ioint, confflags_stack});
+
+                auto flag_idx = std::find(names.begin(), names.end(), element);
+                if (flag_idx == names.end()) continue;
+
+                auto flagval = flags[std::distance(names.begin(), flag_idx)];
+
+                if (value == "true")
+                    args.should_enable = static_cast<config_flags_1>(flagval | args.should_enable);
+                else 
+                    args.should_enable = static_cast<config_flags_1>(args.should_enable & ~flagval);
+                
+    
             }
         }
 

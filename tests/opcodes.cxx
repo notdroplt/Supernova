@@ -1,4 +1,4 @@
-#include "../supernova.h"
+#include <supernova.h>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -62,12 +62,12 @@ int opcodes(int, char **)
 
     auto rengine = std::mt19937_64{};
 
-    // i think this is random enough
+    /* i think this is random enough */
     srand(time(NULL));
     rengine.discard(rand() % (rand() % 28657));
 
     thread_model_t thread_model{
-        confflags_stack | confflags_intdiv | confflags_interrupts | confflags_condset | confflags_hosted,
+        confflags_stack | confflags_idiv | confflags_int | confflags_cset | confflags_host,
         (1LLU << 51) - 1,
         0,
         0,
@@ -91,14 +91,14 @@ int opcodes(int, char **)
     test_result += test_instruction(thread, SInstruction(ori_instrc, 1, 3, 0), rengine, "ori", std::bit_or{});
     test_result += test_instruction(thread, RInstruction(not_instrc, 1, 2, 3), rengine, "not", [](auto left, auto){ return ~left; });
     test_result += test_instruction(thread, SInstruction(cnt_instrc, 1, 3, 0), rengine, "cnt", [](auto left, auto) -> uint64_t { return __builtin_popcountl(left); });
-    test_result += test_instruction(thread, RInstruction(llsr_instrc, 1, 2, 3), rengine, "llsr", [](auto left, auto right) -> uint64_t { return right >= 64 ? 0 : left << right; });
-    test_result += test_instruction(thread, SInstruction(llsi_instrc, 1, 3, 0), rengine, "llsi", [](auto left, auto right) -> uint64_t { return right >= 64 ? 0 : left << right; });
-    test_result += test_instruction(thread, RInstruction(lrsr_instrc, 1, 2, 3), rengine, "lrsr", [](auto left, auto right) -> uint64_t { return right >= 64 ? 0 : left >> right; });
-    test_result += test_instruction(thread, SInstruction(lrsi_instrc, 1, 3, 0), rengine, "lrsi", [](auto left, auto right) -> uint64_t { return right >= 64 ? 0 : left >> right; });
-    //
-    //
-    //
-    //
+    test_result += test_instruction(thread, RInstruction(llsr_instrc, 1, 2, 3), rengine, "llsr", [](auto left, auto right) -> uint64_t { return left << right; });
+    test_result += test_instruction(thread, SInstruction(llsi_instrc, 1, 3, 0), rengine, "llsi", [](auto left, auto right) -> uint64_t { return left << right; });
+    test_result += test_instruction(thread, RInstruction(lrsr_instrc, 1, 2, 3), rengine, "lrsr", [](auto left, auto right) -> uint64_t { return left >> right; });
+    test_result += test_instruction(thread, SInstruction(lrsi_instrc, 1, 3, 0), rengine, "lrsi", [](auto left, auto right) -> uint64_t { return left >> right; });
+    /**/
+    /**/
+    /**/
+    /**/
     test_result += test_instruction(thread, RInstruction(addr_instrc, 1, 2, 3), rengine, "addr", std::plus{});
     test_result += test_instruction(thread, SInstruction(addi_instrc, 1, 3, 0), rengine, "addi", std::plus{});
     test_result += test_instruction(thread, RInstruction(subr_instrc, 1, 2, 3), rengine, "subr", std::minus{});

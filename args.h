@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include "supernova.h"
+#include <supernova.h>
 namespace supernova::arguments
 {
     /**

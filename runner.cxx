@@ -1,9 +1,7 @@
-#include "supernova.h"
+#include <supernova.h>
 #include "args.h"
 #include "headers.h"
 #include <iostream>
-
-
 
 int main(int argc, char ** argv) {
     auto const args = supernova::arguments::load_argv(argc, argv);
@@ -21,5 +19,5 @@ int main(int argc, char ** argv) {
 
     auto thread = supernova::Thread(std::move(file_info.memory_pointer), file_info.memory_size, nullptr, file_info.entry_point);
 
-    return supernova::run(0, nullptr, thread).second;
+    return supernova::run(0, nullptr, thread, false, args.should_enable).second;
 }

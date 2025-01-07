@@ -1,7 +1,8 @@
 #include "headers.h"
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 
 supernova::headers::read_return supernova::headers::read_file(supernova::arguments::arguments const&args)
@@ -23,7 +24,7 @@ supernova::headers::read_return supernova::headers::read_file(supernova::argumen
     }
 
      // NOLINTNEXTLINE: there is not much to do
-    file.read(reinterpret_cast<char *>(&main), sizeof(main));
+    file.read(reinterpret_cast<char *>(&main), sizeof(main_header));
 
     if (main.magic != headers::master_magic)
     {

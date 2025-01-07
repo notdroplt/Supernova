@@ -13,7 +13,6 @@
 #include <array>
 #include <cstdint>
 #include <memory>
-#include <type_traits>
 
 #ifndef SUPERNOVA_VERSION_MAJOR
 /** should be set if compiling with cmake, this is just a failback for lsp servers */
@@ -46,7 +45,7 @@ namespace supernova
          */
         constexpr auto left_shift(uint64_t left, uint64_t right) -> uint64_t
         {
-            return sizeof(left) * 8 > right ? left << right : 0;
+            return left << (right & 0xFF);
         };
 
         /**
@@ -59,15 +58,14 @@ namespace supernova
          */
         constexpr auto right_shift(uint64_t left, uint64_t right) -> uint64_t
         {
-            return sizeof(left) * 8 > right ? left >> right : 0;
+
+            return left >> (right & 0xFF);
         };
 
         constexpr auto popcount(uint64_t left, uint64_t right [[maybe_unused]]) -> uint64_t
         {
             if constexpr (__has_builtin(__builtin_popcountl))
-            {
                 return __builtin_popcountl(left);
-            }
             else
             {
                 auto count = 0U;
@@ -76,6 +74,35 @@ namespace supernova
                 return count;
             }
         };
+
+        /**
+     * @brief Sign extend immediates on small integer instructions
+     *
+     * @param number number to sign extend
+     *
+     * @returns int64_t sign extended number
+     */
+    [[nodiscard, gnu::const]] constexpr auto ssextend(uint64_t number) noexcept -> int64_t
+    {
+        constexpr auto neg_mask = 0xFFFF000000000000LU;
+        constexpr auto sign_bit = 0x0000800000000000LU;
+        return (number & sign_bit) != 0 ? static_cast<int64_t>(number | neg_mask) : static_cast<int64_t>(number);
+    }
+
+    /**
+     * @brief Sign extend immediates on long integer instructions
+     *
+     * @param number number to sign extend
+     *
+     * @returns int64_t sign extended number
+     */
+    [[nodiscard, gnu::const]] constexpr auto lsextend(uint64_t number) noexcept -> int64_t
+    {
+        constexpr auto neg_mask = 0xFFF0000000000000LU;
+        constexpr auto sign_bit = 0x0008000000000000LU;
+        return (number & sign_bit) != 0 ? static_cast<int64_t>(number | neg_mask) : static_cast<int64_t>(number);
+    }
+
     }; // namespace helpers
 
     /**
@@ -161,14 +188,10 @@ namespace supernova
         udivi_instrc = 0x19, /**< `udiv r#, r#, imm` : S type */
         sdivr_instrc = 0x1A, /**< `sdiv r#, r#, r#`  : R type */
         sdivi_instrc = 0x1B, /**< `sdiv r#, r#, imm` : S type */
-        call_instrc = 0x1C,
-        /**< `call r#, r#, r#`  : R type */ /* marked to be reserved in next release */
-        push_instrc = 0x1D,
-        /**< `push r#, r#, imm` : S type */ /* marked to be reserved in next release */
-        retn_instrc = 0x1E,
-        /**< `retn r#, r#, r#`  : R type */ /* marked to be reserved in next release */
-        pull_instrc = 0x1F,
-        /**< `pull r#, r#, imm` : S type */ /* marked to be reserved in next release */
+        call_instrc = 0x1C,  /**< `call r#, r#, r#`  : R type */ /* reserved, only for cross compiling */
+        push_instrc = 0x1D,  /**< `push r#, r#, imm` : S type */ /* reserved, only for cross compiling */
+        retn_instrc = 0x1E,  /**< `retn r#, r#, r#`  : R type */ /* reserved, only for cross compiling */
+        pull_instrc = 0x1F,  /**< `pull r#, r#, imm` : S type */ /* reserved, only for cross compiling */
         /** @} */                           /* InPG1 */
 
         /**
@@ -221,7 +244,7 @@ namespace supernova
         lui_instrc = 0x38,     /**< `lui r#, imm`        : L type */
         auipc_instrc = 0x39,   /**< `auipc r#, imm`      : L type */
         pcall_instrc = 0x3A,   /**< `pcall r#, imm`      : L type */
-        /* reserved : S type */
+        pret_instrc = 0x3B,    /**< `pret r#, imm`       : L type */
         bout_instrc = 0x3C, /**< `outb r#, r#, 0`    : R type */
         out_instrc = 0x3D,  /**< `outw r#, r#, 0`    : S type */
         bin_instrc = 0x3E,  /**< `inb r#, r#, 0`     : R type */
@@ -259,6 +282,10 @@ namespace supernova
         /** @}*/
         /** TODO: group 5, conditional move instructions */
         /** TODO: group 6, memory fences */
+
+
+        __last_plus_one,
+        instruction_count = __last_plus_one - 1
     };
 
     /**
@@ -292,33 +319,7 @@ namespace supernova
         InterruptCrashLoop, /**< program got into an irrecoverable triple fault */
     };
 
-    /**
-     * @brief Sign extend immediates on small integer instructions
-     *
-     * @param number number to sign extend
-     *
-     * @returns int64_t sign extended number
-     */
-    [[nodiscard, gnu::const]] constexpr auto ssextend(uint64_t number) noexcept -> int64_t
-    {
-        constexpr auto neg_mask = 0xFFFF000000000000LU;
-        constexpr auto sign_bit = 0x0000800000000000LU;
-        return (number & sign_bit) != 0 ? static_cast<int64_t>(number | neg_mask) : static_cast<int64_t>(number);
-    }
-
-    /**
-     * @brief Sign extend immediates on long integer instructions
-     *
-     * @param number number to sign extend
-     *
-     * @returns int64_t sign extended number
-     */
-    [[nodiscard, gnu::const]] constexpr auto lsextend(uint64_t number) noexcept -> int64_t
-    {
-        constexpr auto neg_mask = 0xFFF0000000000000LU;
-        constexpr auto sign_bit = 0x0008000000000000LU;
-        return (number & sign_bit) != 0 ? static_cast<int64_t>(number | neg_mask) : static_cast<int64_t>(number);
-    }
+    
 
     /**
      * @brief R type instruction layout
@@ -437,6 +438,7 @@ namespace supernova
         /** mask for the immediate on a raw `uint64_t` */
         static const constexpr auto mask_imm = 0xFFFFFFFFFFFF0000U;
 
+        /** mask used for signed comparisions */
         static const constexpr auto big_uimm = 0x00007FFFFFFFFFFFU;
 
         /** offset for the opcode on a raw `uint64_t` */
@@ -497,7 +499,7 @@ namespace supernova
          * @brief get the second register in this instruction, sign extended
          * @return second register index
          */
-        [[nodiscard]] constexpr auto imm() const noexcept -> int64_t { return ssextend((this->m_instruction & mask_imm) >> off_imm); }
+        [[nodiscard]] constexpr auto imm() const noexcept -> int64_t { return helpers::ssextend((this->m_instruction & mask_imm) >> off_imm); }
 
         /**
          * @brief get the second register in this instruction, do not extend sign
@@ -581,7 +583,7 @@ namespace supernova
          * @brief get the immediate in this instruction, sign extended
          * @return immediate value
          */
-        [[nodiscard]] constexpr auto imm() const noexcept -> int64_t { return lsextend(this->m_instruction & mask_imm) >> off_imm; }
+        [[nodiscard]] constexpr auto imm() const noexcept -> int64_t { return helpers::lsextend(this->m_instruction & mask_imm) >> off_imm; }
 
         /**
          * @brief get the second register in this instruction
@@ -604,23 +606,23 @@ namespace supernova
      */
     enum config_flags_1 : uint16_t
     {
-        confflags_paging = 0x0001,     /**< support for memory paging */
-        confflags_stack = 0x0002,      /**< support for stack instructions */
-        confflags_intdiv = 0x0004,     /**< support for integer division instructions */
-        confflags_interrupts = 0x0008, /**< support for software interrupts */
-        confflags_floats = 0x0010,     /**< support for hardware floating point */
-        confflags_fences = 0x0020,     /**< support for memory fences */
-        confflags_condset = 0x0040,    /**< support for conditional get/set */
-        confflags_condmove = 0x0080,   /**< support for conditional move */
-        confflags_multi64 = 0x0100,    /**< multiple execution instructions, 64 bit */
-        confflags_multi128 = 0x0200,   /**< multiple execution instructions, 128 bit */
-        confflags_multi256 = 0x0400,   /**< multiple execution instructions, 256 bit */
-        confflags_multi512 = 0x0800,   /**< multiple execution instructions, 512 bit */
-        confflags_ioint = 0x1000,      /**< @b programmable hardware interrupts */
-        confflags_hosted = 0x2000      /**< supports hosted environment functions */
+        confflags_page  = 0x0001, /**< support for memory paging */
+        confflags_stack = 0x0002, /**< support for stack instructions */
+        confflags_idiv  = 0x0004, /**< support for integer division instructions */
+        confflags_int   = 0x0008, /**< support for software interrupts */
+        confflags_flt   = 0x0010, /**< support for hardware floating point */
+        confflags_fence = 0x0020, /**< support for memory fences */
+        confflags_cset  = 0x0040, /**< support for conditional get/set */
+        confflags_cmove = 0x0080, /**< support for conditional move */
+        confflags_m64   = 0x0100, /**< multiple execution instructions, 64 bit */
+        confflags_m128  = 0x0200, /**< multiple execution instructions, 128 bit */
+        confflags_m256  = 0x0400, /**< multiple execution instructions, 256 bit */
+        confflags_m512  = 0x0800, /**< multiple execution instructions, 512 bit */
+        confflags_ioint = 0x1000, /**< @b programmable hardware interrupts */
+        confflags_host  = 0x2000  /**< supports hosted environment functions */
     };
 
-    constexpr uint64_t config_value = confflags_stack | confflags_intdiv | confflags_hosted | confflags_ioint;
+    constexpr uint64_t config_value = confflags_stack | confflags_idiv | confflags_host | confflags_ioint;
     constexpr uint64_t int_count = 0xFFFFFFFFFFFFEU; // 2^52 - 2
 
     struct thread_model_t
@@ -779,6 +781,12 @@ namespace supernova
         [[nodiscard]] constexpr auto signal() noexcept -> auto & { return this->m_signal; }
 
         /**
+         * @brief get current pcall return address
+         * @return processor pcall return reference
+         */
+        [[nodiscard]] constexpr auto pcallret() noexcept -> auto& { return this->m_special[pcallret_idx]; }
+
+        /**
          * @brief apply a function from Rinstruction values
          * @tparam T type of function (template deducted)
          * @param instr R instruction to get register indexes from
@@ -807,13 +815,6 @@ namespace supernova
         {
             this->m_registers[instr.rd()] =
                 func(this->m_registers[instr.r1()], instr.uimm());
-        }
-
-        template <typename T>
-        constexpr void apply_instr(SInstruction instr, T func, bool apply_signed [[maybe_unused]]) noexcept
-        {
-            this->m_registers[instr.rd()] =
-                func(this->m_registers[instr.r1()], instr.imm());
         }
 
     private:
@@ -1019,9 +1020,10 @@ namespace supernova
      * @param[in] argv main's argv
      * @param thread current thread to run
      * @param step set to only run one instruction, defaults to false but used when testing
+     * @param flags flags to which instructions to run
      * @return exit codet
      */
-    auto run(int argc, char **argv, Thread &thread, bool step = false) -> thread_return;
+    auto run(int argc, char **argv, Thread &thread, bool step = false, config_flags_1 flags = config_flags_1(config_value)) -> thread_return;
 
     /** @} */ /* end of group Virtual Instrucion Set Emulation */
 

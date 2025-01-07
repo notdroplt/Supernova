@@ -1,4 +1,4 @@
-#include "../supernova.h"
+#include <supernova.h>
 #include <random>
 #include <iostream>
 #include <iomanip>

@@ -17,7 +17,7 @@ endforeach()
 create_test_sourcelist (Tests SuperNovaTests.cxx ${TestToRun})
 
 # add the executable 
-add_executable (SuperNovaTests ${Tests})
+add_executable (SuperNovaTests ${Tests} ../read_file.cxx)
 target_link_libraries(SuperNovaTests PUBLIC supernova)
 # Add all the ADD_TEST for each test
 
