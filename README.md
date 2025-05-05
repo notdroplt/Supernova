@@ -10,20 +10,12 @@ opcodes and behaviors might change in future releases.
 
 ## Compiling 
 
-To compiling the project, you will need
- - [CMAKE](https://cmake.org/) (version 3.5 or higher) to build
- - a C++17 compliant compiler
+To compiling the project, you will need the zig compiler
 
 Then, in the project folder
 
 ```bash
-mkdir -p build && cmake -S . -B build
-```
-
-To generate build files and then
-
-```bash
-cmake --build build
+zig build run
 ```
 
 which *should* compile everything, including tests, but they are small so it is fine
@@ -75,7 +67,7 @@ which *should* compile everything, including tests, but they are small so it is 
     - `--enable-div`: enable integer division instructions `udivr`, `udivi`, `sdivr`, `sdivi`
     - `--enable-int`: enable interrupt instructions
     - `--enable-float`: enable all floating point instructions 
-    - `--enable-ioint`: enable interrupts trigged by i/o ports
+    - `--enable-ioint`: enable interrupts triggered by i/o ports
     - `--enable-stack`: enable stack instructions (defaults to false)
 
 
@@ -111,7 +103,7 @@ r00 | zero register     | none, read-"only" because writing is discarded
 r01 - r12 | general use | none
 r13 | `pcall` return    | save before `pcall`, general use otherwise
 r14 | `pcall` return    | save before `pcall`, general use otherwise
-r15 | `pcall` parameter | `pcall` fswitch, general use otherwise
+r15 | `pcall` parameter | `pcall` switch, general use otherwise
 
 
 ## Instruction Set Resume
@@ -180,76 +172,76 @@ r15 | `pcall` parameter | `pcall` fswitch, general use otherwise
     - adds `r2` to `r1` and set `rd` as the result
     - executes: `rd <- r1 + r2`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - addi [opcode `0x11`, S type]
     - adds `imm` to `r1` and set `rd` as the result
     - executes: `rd <- r1 + imm`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - subr [opcode `0x12`, R type]
     - subtracts `r2` from `r1` and set `rd` as the result
     - executes: `rd <- r1 - r2`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - subi [opcode `0x13`, S type]
     - subtracts `imm` from `r1` and set `rd` as the result
     - executes: `rd <- r1 - imm`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - umulr [opcode `0x14`, R type]
     - set `rd` to `r2 (unsigned)` times `r1 (unsigned)`
     - executes: `rd <- u64(r1) * u64(r2)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - umuli [opcode `0x15`, S type]
     - set `rd` to `imm (unsigned)` times `r1 (unsigned)` 
     - executes: `rd <- u64(r1) * u64(imm)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - smulr [opcode `0x16`, R type]
     - set `rd` to `r2 (signed)` times `r1 (signed)` 
     - executes: `rd <- i64(r1) * i64(r2)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - smuli [opcode `0x17`, S type]
     - set `rd` to `imm` times `r1` 
     - executes: `rd <- i64(r1) * i64(imm)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
 
   - udivr [opcode `0x18`, R type]
     - set `rd` to `r1 (unsigned)` divided by `r2 (unsigned)`
     - executes: `rd <- u64(r1) / u64(r2)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
       - `r2 = 0` triggers `pcall 1`
 
   - udivi [opcode `0x19`, S type]
     - set `rd` to `r1 (unsigned)` divided by `imm (unsigned)`
     - executes: `rd <- u64(r1) / u64(imm)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
       - `imm = 0` triggers `pcall 1`
 
   - sdivr [opcode `0x1A`, R type]
     - set `rd` to `r1 (signed)` divided by `r2 (signed)`
     - executes: `rd <- i64(r1) / i64(r2)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
       - `r2 = 0` triggers `pcall 1`
 
   - sdivi [opcode `0x1B`, S type]
     - set `rd` to `r1 (signed)` divided by `imm (signed)`
     - executes: `rd <- i64(r1) / i64(imm)`
     - edge case:
-      - overflow is discarted
+      - overflow is discarded
       - `imm = 0` triggers `pcall 1`
 
   - call [opcode `0x1C`, R type] (deprecated)
@@ -443,7 +435,7 @@ r15 | `pcall` parameter | `pcall` fswitch, general use otherwise
 
   - auipc [opcode `0x39`, L type]
     - set `rd` to the sum of the address that the `aupic` instruction is
-    located (pc) with an `imm` on the higest bits
+    located (pc) with an `imm` on the highest bits
     - executes:
       - `rd <- pc + (u64(imm) << 12)`
   
@@ -459,7 +451,7 @@ r15 | `pcall` parameter | `pcall` fswitch, general use otherwise
 ### Default interrupts/exceptions used by the virtual machine
 
 - `pcall -1`: [Processor interface](#pcall--1)
-- `pcall 0`: Divison by zero
+- `pcall 0`: Division by zero
 - `pcall 1`: General fault
 - `pcall 2`: Double fault
 - `pcall 3`: Triple fault
@@ -508,10 +500,15 @@ permissions into a memory region, sets r15 to the unusable address
 
 ## `pcall -1`
 
-Only `pcall -1` is hardware/vm defined, all the other $2^{51}-1$ possible interrupts are programmable with a call to `pcall -1`:
+Only `pcall -1` is hardware/vm defined, all the other $2^{51}-1$
+possible interrupts are programmable with a call to `pcall -1`.
 
-The interface defined uses r15 split in two 32bit areas `intspace:fswitch` as interrupt space and functionality switches, while other registers are used accordingly as each function needs.
-Normally, `fswitch = 0` will be a `instspace` implementation check, behaving as a `orr r14 r0 r0` in case `intspace`'s feature is not implmemented.
+The interface defined uses `r15` split in two 32 bit areas `space:switch` 
+as interrupt space and functionality switches, while other registers are
+used accordingly as each function needs.  
+
+Normally, `switch = 0` will be a `space` implementation check, behaving
+as a `orr r14 r0 r0` in case its features are not implemented.
 
 **`pcall -1` functions**
 
@@ -587,7 +584,7 @@ trashed registers: none
 
 ---
 
-### Hypervosor functions
+### Hypervisor functions
 
 #### Hypervisor check
 
