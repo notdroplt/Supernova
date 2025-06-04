@@ -152,22 +152,23 @@ pub const Opcodes = enum(u8) {
     jles = 0x3F, // S
 
     // extension 1 - floating point
-    flt_ldu = 0x40, // S
-    flt_lds = 0x41, // S
-    flt_stu = 0x42, // S
-    flt_sts = 0x43, // S
-    flt_add = 0x44, // R
-    flt_sub = 0x45, // R
-    flt_mul = 0x46, // R
-    flt_div = 0x47, // R
-    flt_ceq = 0x48, // R
-    flt_cne = 0x49, // R
-    flt_cgt = 0x4A, // R
-    flt_cle = 0x4B, // R
-    flt_rou = 0x4C, // R
-    flt_flr = 0x4D, // R
-    flt_cei = 0x4E, // R
-    flt_trn = 0x4F, // R
+    
+    flt_add = 0x40, // R
+    flt_sub = 0x41, // R
+    flt_mul = 0x42, // R
+    flt_div = 0x43, // R
+    flt_ceq = 0x44, // R
+    flt_cne = 0x45, // R
+    flt_cgt = 0x46, // R
+    flt_cle = 0x47, // R
+    flt_rou = 0x48, // R
+    flt_flr = 0x49, // R
+    flt_cei = 0x4A, // R
+    flt_trn = 0x4B, // R
+    flt_ldu = 0x4C, // S
+    flt_lds = 0x4D, // S
+    flt_stu = 0x4E, // S
+    flt_sts = 0x4F, // S
 
     // the following instructions are only mnemonics for compiling
     // purposes, they are not real instructions
@@ -180,6 +181,12 @@ pub const Opcodes = enum(u8) {
 
     /// move an intermediate to a register (differentiates from a normal ori)
     mov = 0xFD, // undefined
+
+    /// move a register to another register (used on CSE before DCE)
+    mov_reg = 0xFC, // r1: source register, rd: destination register
+
+    /// do nothing, would do the same as an u64{0} but this is more semantic
+    nop = 0xFB, // do nothing
 };
 
 /// Register <- Register, Register instruction layout
@@ -579,13 +586,10 @@ pub const Thread = extern struct {
     }
 
     pub inline fn fetch(self: *Thread, comptime Size: type, address: u64) Size {
-        @setCold(false);
         return @as([*]const Size, @alignCast(@ptrCast(self.memory)))[address];
     }
 
-    pub inline fn place(self: *Thread, comptime Size: type, address: u64, value: Size) void {
-        @setCold(false);
-        @as([*]Size, @alignCast(@ptrCast(self.memory)))[address] = value;
+    pub inline fn place(self: *Thread, comptime Size: type, address: u64, value: Size) void {        @as([*]Size, @alignCast(@ptrCast(self.memory)))[address] = value;
     }
 
     fn pcallMinusOne(self: *Thread) !void {
@@ -633,178 +637,140 @@ pub const Thread = extern struct {
             self.fetch(u64, self.specials.interruptVector + pcall * @sizeOf(Instruction));
     }
 
-    fn invalidInstruction(self: *Thread, instruction: u64) !void {
-        @setCold(false);
-        self.registers[pcallInvalidOpcode] = instruction;
+    fn invalidInstruction(self: *Thread, instruction: u64) !void {        self.registers[pcallInvalidOpcode] = instruction;
         try self.dispatchPcall(@intFromEnum(ProcessorCall.InvalidInstruction));
     }
 
-    fn do_andr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = RInstruction.fromInteger(instr);
+    fn do_andr(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] & self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
-    fn do_andi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = SInstruction.fromInteger(instr);
+    fn do_andi(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] & inst.uimm();
         self.registers[inst.rd()] = res;
     }
 
-    fn do_xorr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = RInstruction.fromInteger(instr);
+    fn do_xorr(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] ^ self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
-    fn do_xori(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = SInstruction.fromInteger(instr);
+    fn do_xori(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] ^ inst.uimm();
         self.registers[inst.rd()] = res;
     }
 
-    fn do_orr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = RInstruction.fromInteger(instr);
+    fn do_orr(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] | self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
-    fn do_ori(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = SInstruction.fromInteger(instr);
+    fn do_ori(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] | inst.uimm();
         self.registers[inst.rd()] = res;
     }
 
-    fn do_not(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = RInstruction.fromInteger(instr);
+    fn do_not(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = RInstruction.fromInteger(instr);
         self.registers[inst.rd()] = ~self.registers[inst.r1()];
     }
 
-    fn do_cnt(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = SInstruction.fromInteger(instr);
+    fn do_cnt(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = SInstruction.fromInteger(instr);
         self.registers[inst.rd()] = @popCount(self.registers[inst.r1()]);
     }
 
-    fn do_llsr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = RInstruction.fromInteger(instr);
+    fn do_llsr(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] << @truncate(self.registers[inst.r2()]);
         self.registers[inst.rd()] = res;
     }
 
-    fn do_llsi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = SInstruction.fromInteger(instr);
+    fn do_llsi(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] << @truncate(inst.uimm());
         self.registers[inst.rd()] = res;
     }
 
-    fn do_lrsr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
-        const inst = RInstruction.fromInteger(instr);
+    fn do_lrsr(self: *Thread, instr: u64) ThreadDestruction!void {        const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] >> @truncate(self.registers[inst.r2()]);
         self.registers[inst.rd()] = res;
     }
 
     fn do_lrsi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         self.registers[inst.rd()] = self.registers[inst.r1()] >> @truncate(inst.uimm());
     }
 
     fn do_addr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] + self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
     fn do_addi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] + inst.uimm();
         self.registers[inst.rd()] = res;
     }
 
     fn do_subr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] - self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
     fn do_subi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         self.registers[inst.rd()] = self.registers[inst.r1()] - inst.uimm();
     }
     
     fn do_umulr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] * self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
     fn do_umuli(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] * inst.uimm();
         self.registers[inst.rd()] = res;
     }
 
     fn do_smulr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] * self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
     fn do_smuli(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] * inst.imm();
         self.registers[inst.rd()] = res;
     }
 
     fn do_udivr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] / self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
     fn do_udivi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] / inst.uimm();
         self.registers[inst.rd()] = res;
     }
 
     fn do_sdivr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] / self.registers[inst.r2()];
         self.registers[inst.rd()] = res;
     }
 
     fn do_sdivi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] / inst.imm();
         self.registers[inst.rd()] = res;
     }
 
     fn do_call(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = RInstruction.fromInteger(instr);
         const stack = self.registers[inst.r1()];
         const base = self.registers[inst.r2()];
@@ -820,7 +786,6 @@ pub const Thread = extern struct {
     }
 
     fn do_push(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = SInstruction.fromInteger(instr);
         const stack = self.registers[inst.r1()];
         const addr = self.registers[inst.rd()];
@@ -830,7 +795,6 @@ pub const Thread = extern struct {
     }
 
     fn do_retn(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = RInstruction.fromInteger(instr);
         const stack = self.registers[inst.r1()] - 2 * @sizeOf(Instruction);
 
@@ -840,7 +804,6 @@ pub const Thread = extern struct {
     }
 
     fn do_pull(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(true);
         const inst = SInstruction.fromInteger(instr);
         const stack = self.registers[inst.r1()] - 1 * @sizeOf(Instruction);
 
@@ -849,63 +812,54 @@ pub const Thread = extern struct {
     }
 
     fn do_ldbyte(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.registers[inst.rd()] = self.fetch(u8, addr);
     }
 
     fn do_ldhalf(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.registers[inst.rd()] = self.fetch(u16, addr);
     }
 
     fn do_ldword(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.registers[inst.rd()] = self.fetch(u32, addr);
     }
 
     fn do_lddwrd(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.registers[inst.rd()] = self.fetch(u64, addr);
     }
 
     fn do_stbyte(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.place(u8, addr, @intCast(self.registers[inst.rd()] & 0xFF));
     }
 
     fn do_sthalf(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.place(u16, addr, @intCast(self.registers[inst.rd()] & 0xFFFF));
     }
 
     fn do_stword(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.place(u32, addr, @intCast(self.registers[inst.rd()] & 0xFFFFFFFF));
     }
 
     fn do_stdwrd(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.registers[inst.r1()] + inst.imm();
         self.place(u64, addr, self.registers[inst.rd()]);
     }
 
     fn do_jal(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = LInstruction.fromInteger(instr);
         const addr = self.specials.instructionPointer + @as(u64, @intCast(inst.imm() * 3));
         self.registers[inst.r1()] = self.specials.instructionPointer + @sizeOf(Instruction);
@@ -913,7 +867,6 @@ pub const Thread = extern struct {
     }
 
     fn do_jalr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const addr = self.specials.instructionPointer + self.registers[inst.rd()] + inst.imm() * 3;
         self.registers[inst.r1()] = self.specials.instructionPointer + @sizeOf(Instruction);
@@ -921,28 +874,24 @@ pub const Thread = extern struct {
     }
 
     fn do_je(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         if (self.registers[inst.r1()] == self.registers[inst.rd()])
             self.specials.instructionPointer += inst.imm() * 3;
     }
     
     fn do_jne(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         if (self.registers[inst.r1()] != self.registers[inst.rd()])
             self.specials.instructionPointer += inst.imm() * 3;
     }
     
     fn do_jgu(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         if (self.registers[inst.r1()] > self.registers[inst.rd()])
             self.specials.instructionPointer += inst.imm() * 3;
     }
     
     fn do_jgs(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         if (@as(i64, @bitCast(self.registers[inst.r1()])) > 
             @as(i64, @bitCast(self.registers[inst.rd()])))
@@ -950,13 +899,11 @@ pub const Thread = extern struct {
     }
 
     fn do_jleu(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         if (self.registers[inst.r1()] <= self.registers[inst.rd()])
             self.specials.instructionPointer += inst.imm() * 3;
     }
     fn do_jles(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         if (@as(i64, @bitCast(self.registers[inst.r1()])) <= 
             @as(i64, @bitCast(self.registers[inst.rd()])))
@@ -964,21 +911,18 @@ pub const Thread = extern struct {
     }
 
     fn do_setgur(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] > self.registers[inst.r2()];
         self.registers[inst.rd()] = @intFromBool(res);
     }
     
     fn do_setgui(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] > inst.uimm();
         self.registers[inst.rd()] = @intFromBool(res);
     }
 
     fn do_setgsr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = @as(i64, @bitCast(self.registers[inst.r1()])) 
                   > @as(i64, @bitCast(self.registers[inst.r2()]));
@@ -986,7 +930,6 @@ pub const Thread = extern struct {
     }
 
     fn do_setgsi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = @as(i64, @bitCast(self.registers[inst.r1()])) 
                   > inst.imm();
@@ -994,21 +937,18 @@ pub const Thread = extern struct {
     }
 
     fn do_setleur(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] <= self.registers[inst.r2()];
         self.registers[inst.rd()] = @intFromBool(res);
     }
     
     fn do_setleui(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = self.registers[inst.r1()] <= inst.uimm();
         self.registers[inst.rd()] = @intFromBool(res);
     }
 
     fn do_setlesr(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         const res = @as(i64, @bitCast(self.registers[inst.r1()])) 
                   <= @as(i64, @bitCast(self.registers[inst.r2()]));
@@ -1016,7 +956,6 @@ pub const Thread = extern struct {
     }
 
     fn do_setlesi(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = SInstruction.fromInteger(instr);
         const res = @as(i64, @bitCast(self.registers[inst.r1()])) 
                   <= inst.imm();
@@ -1024,25 +963,21 @@ pub const Thread = extern struct {
     }
 
     fn do_lui(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = LInstruction.fromInteger(instr);
         self.registers[inst.r1()] = inst.uimm() << 12;
     }
 
     fn do_auipc(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = LInstruction.fromInteger(instr);
         self.registers[inst.r1()] = self.specials.instructionPointer + inst.uimm() << 12;
     }
 
     fn do_pcall(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = LInstruction.fromInteger(instr);
         try self.dispatchPcall(@truncate(inst.uimm()));
     }
 
     fn do_pret(self: *Thread, instr: u64) ThreadDestruction!void {
-        @setCold(false);
         const inst = RInstruction.fromInteger(instr);
         self.specials.instructionPointer = self.registers[inst.r1()];
         self.registers[inst.r1()] = self.registers[inst.r2()];
