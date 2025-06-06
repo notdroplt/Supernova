@@ -171,7 +171,8 @@ pub const Opcodes = enum(u8) {
     flt_sts = 0x4F, // S
 
     // the following instructions are only mnemonics for compiling
-    // purposes, they are not real instructions
+    // purposes, they are not real instructions, all opcodes starting at
+    // 0xFx should be considered as no ops
     
     /// reference a phi node 
     phi_node = 0xFF, // immediate: phi id
@@ -187,6 +188,17 @@ pub const Opcodes = enum(u8) {
 
     /// do nothing, would do the same as an u64{0} but this is more semantic
     nop = 0xFB, // do nothing
+
+    /// IR intrinsic for the amount of parameters a function has
+    param = 0xFA, // immediate: parameter count
+
+    /// Points to a type table the info about what is on a register
+    in_ir = 0xF9, // rd: register to point, imm: table id, r1:r2: byte offset
+
+    /// Poits to what exits the current block
+    out_ir = 0xF8, // rd: register to point, imm: table id, r1:r2: byte offset
+
+    
 };
 
 /// Register <- Register, Register instruction layout
