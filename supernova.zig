@@ -202,7 +202,7 @@ pub const Opcodes = enum(u8) {
 };
 
 /// Register <- Register, Register instruction layout
-pub const RInstruction align(64) = extern struct {
+pub const RInstruction = extern struct {
     /// Full instruction value
     instruction: u64,
 
@@ -276,7 +276,7 @@ test RInstruction {
 
 
 /// Register <- Register, immediate instruction layout
-pub const SInstruction align(64) = extern struct {
+pub const SInstruction = extern struct {
     /// full instruction value
     instruction: u64,
 
@@ -353,7 +353,7 @@ test SInstruction {
 }
 
 /// Register-immediate instruction layout
-pub const LInstruction align(64) = extern struct {
+pub const LInstruction = extern struct {
     /// Full instruction value
     instruction: u64,
 
@@ -601,7 +601,8 @@ pub const Thread = extern struct {
         return @as([*]const Size, @alignCast(@ptrCast(self.memory)))[address];
     }
 
-    pub inline fn place(self: *Thread, comptime Size: type, address: u64, value: Size) void {        @as([*]Size, @alignCast(@ptrCast(self.memory)))[address] = value;
+    pub inline fn place(self: *Thread, comptime Size: type, address: u64, value: Size) void { 
+        @as([*]Size, @alignCast(@ptrCast(self.memory)))[address] = value;
     }
 
     fn pcallMinusOne(self: *Thread) !void {
